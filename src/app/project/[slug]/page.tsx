@@ -71,7 +71,7 @@ export default function ProjectStudioPage() {
   }
 
   return (
-    <div className="h-screen bg-[#121212] flex flex-col overflow-hidden select-none">
+    <div className="h-screen bg-[#121212] flex flex-col overflow-hidden select-text">
       {/* Top Header */}
       <StudioHeader project={project} />
 
