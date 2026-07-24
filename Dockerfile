@@ -1,4 +1,6 @@
-# Step 1: Install dependencies with npm cache
+# syntax=docker/dockerfile:1
+
+# Step 1: Install dependencies with BuildKit npm cache
 FROM node:20-slim AS deps
 WORKDIR /app
 
