@@ -37,15 +37,28 @@ export const StudioTableEditor: React.FC<StudioTableEditorProps> = ({ project })
   ]);
   const [creating, setCreating] = useState(false);
 
-  const baseUrl = `https://db.orfa.dev/p/${project.slug}`;
+  const baseUrl = typeof window !== "undefined" ? window.location.origin + `/p/${project.slug}` : `/p/${project.slug}`;
 
   const loadSchema = async () => {
     try {
-      const res = await fetch(baseUrl, {
+      // First try direct control-plane schema discovery API
+      const res = await fetch(`/api/schema/${project.slug}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.tables) && data.tables.length > 0) {
+        const tableNames = data.tables.map((t: any) => t.name);
+        setTables(tableNames);
+        if (tableNames.length > 0 && !selectedTable) {
+          setSelectedTable(tableNames[0]);
+        }
+        return;
+      }
+
+      // Fallback to PostgREST OpenAPI schema
+      const openApiRes = await fetch(baseUrl, {
         headers: { Accept: "application/json", "X-Project-ID": project.slug },
       });
-      if (res.ok) {
-        const schemaObj = await res.json();
+      if (openApiRes.ok) {
+        const schemaObj = await openApiRes.json();
         if (schemaObj.paths) {
           const tableNames = Object.keys(schemaObj.paths)
             .map((p) => p.replace("/", ""))
@@ -57,7 +70,7 @@ export const StudioTableEditor: React.FC<StudioTableEditorProps> = ({ project })
         }
       }
     } catch (e) {
-      console.error("Error fetching OpenAPI schema", e);
+      console.error("Error fetching schema", e);
     }
   };
 

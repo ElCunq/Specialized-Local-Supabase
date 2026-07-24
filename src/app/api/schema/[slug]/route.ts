@@ -1,4 +1,98 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { tenants } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { docker } from "@/lib/docker/client";
+
+/**
+ * Executes raw SQL directly inside the tenant's PostgreSQL Docker container
+ */
+async function executeSqlInTenantDb(slug: string, sql: string): Promise<string> {
+  const containerName = `project_${slug}_db`;
+  const container = docker.getContainer(containerName);
+
+  // Grant schema privileges automatically
+  const fullSql = `
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+        CREATE ROLE anon NOLOGIN NOINHERIT;
+      END IF;
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+        CREATE ROLE authenticated NOLOGIN NOINHERIT;
+      END IF;
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+        CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
+      END IF;
+    END $$;
+    GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+    ${sql}
+    GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+  `;
+
+  const exec = await container.exec({
+    Cmd: ["psql", "-U", "postgres", "-d", "postgres", "-t", "-A", "-c", fullSql],
+    AttachStdout: true,
+    AttachStderr: true,
+  });
+
+  return new Promise((resolve, reject) => {
+    exec.start({}, (err, stream) => {
+      if (err) return reject(err);
+      let output = "";
+      stream?.on("data", (chunk) => (output += chunk.toString("utf8")));
+      stream?.on("end", () => resolve(output));
+    });
+  });
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    const { slug } = params;
+
+    // Discover public tables via direct SQL query
+    const listTablesSql = `
+      SELECT json_agg(t) FROM (
+        SELECT 
+          table_name as name,
+          (
+            SELECT json_agg(c) FROM (
+              SELECT 
+                column_name as name,
+                data_type as type,
+                (is_nullable = 'YES') as is_nullable
+              FROM information_schema.columns 
+              WHERE table_schema = 'public' AND table_name = t.table_name
+            ) c
+          ) as columns
+        FROM information_schema.tables t
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+      ) t;
+    `;
+
+    const rawOutput = await executeSqlInTenantDb(slug, listTablesSql);
+    let tables: any[] = [];
+    try {
+      // Find JSON array in output
+      const jsonStart = rawOutput.indexOf("[");
+      const jsonEnd = rawOutput.lastIndexOf("]");
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        tables = JSON.parse(rawOutput.substring(jsonStart, jsonEnd + 1));
+      }
+    } catch {
+      tables = [];
+    }
+
+    return NextResponse.json({ success: true, tenant: slug, tables });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
 
 export async function POST(
   req: NextRequest,
@@ -7,9 +101,7 @@ export async function POST(
   try {
     const { slug } = params;
     const body = await req.json();
-    const { action, tableName, columns, template } = body;
-
-    const rpcUrl = `https://db.orfa.dev/p/${slug}/rpc/exec_sql`;
+    const { action, tableName, columns, template, sql: customSql } = body;
 
     if (action === "create_table") {
       if (!tableName || !columns || !Array.isArray(columns)) {
@@ -28,13 +120,18 @@ export async function POST(
 
       const sql = `CREATE TABLE IF NOT EXISTS public."${tableName}" (${colDefs});`;
 
-      const res = await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Project-ID": slug },
-        body: JSON.stringify({ query: sql }),
-      });
+      await executeSqlInTenantDb(slug, sql);
 
-      return NextResponse.json({ success: true, message: `Table '${tableName}' created successfully.`, sql });
+      // Notify PostgREST to reload schema cache
+      try {
+        await executeSqlInTenantDb(slug, "NOTIFY pgrst, 'reload schema';");
+      } catch {}
+
+      return NextResponse.json({
+        success: true,
+        message: `Table '${tableName}' created successfully in PostgreSQL.`,
+        sql,
+      });
     }
 
     if (action === "load_template") {
@@ -61,11 +158,13 @@ export async function POST(
           INSERT INTO public.products (name, price, stock) VALUES
           ('MacBook Pro M3', 1999.99, 15),
           ('Wireless Gaming Mouse', 49.99, 150),
-          ('4K Ultra HD Monitor', 399.00, 45);
+          ('4K Ultra HD Monitor', 399.00, 45)
+          ON CONFLICT DO NOTHING;
 
           INSERT INTO public.orders (customer_email, total_amount, status) VALUES
           ('ahmet@example.com', 2049.98, 'completed'),
-          ('zeynep@example.com', 49.99, 'shipped');
+          ('zeynep@example.com', 49.99, 'shipped')
+          ON CONFLICT DO NOTHING;
         `;
       } else if (template === "saas") {
         templateSql = `
@@ -78,18 +177,20 @@ export async function POST(
 
           CREATE TABLE IF NOT EXISTS public.profiles (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-            email text UNIQUE NOT NULL,
+            email text NOT NULL,
             full_name text,
             role text DEFAULT 'member'
           );
 
           INSERT INTO public.organizations (name, plan) VALUES
           ('Acme Corp', 'enterprise'),
-          ('Startup Labs', 'pro');
+          ('Startup Labs', 'pro')
+          ON CONFLICT DO NOTHING;
 
           INSERT INTO public.profiles (email, full_name, role) VALUES
           ('admin@acme.com', 'Caner Yılmaz', 'admin'),
-          ('dev@startuplabs.com', 'Elif Kaya', 'developer');
+          ('dev@startuplabs.com', 'Elif Kaya', 'developer')
+          ON CONFLICT DO NOTHING;
         `;
       } else if (template === "ai_vector") {
         templateSql = `
@@ -104,17 +205,24 @@ export async function POST(
 
           INSERT INTO public.documents (content, embedding) VALUES
           ('Supabase vector search documentation', '[0.1, 0.2, 0.3]'),
-          ('PostgreSQL pgvector extension guide', '[0.4, 0.5, 0.6]');
+          ('PostgreSQL pgvector extension guide', '[0.4, 0.5, 0.6]')
+          ON CONFLICT DO NOTHING;
         `;
       }
 
-      const res = await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Project-ID": slug },
-        body: JSON.stringify({ query: templateSql }),
-      });
+      await executeSqlInTenantDb(slug, templateSql);
+
+      // Notify PostgREST to reload schema
+      try {
+        await executeSqlInTenantDb(slug, "NOTIFY pgrst, 'reload schema';");
+      } catch {}
 
       return NextResponse.json({ success: true, message: `Template '${template}' loaded successfully.` });
+    }
+
+    if (action === "exec_sql" && customSql) {
+      const result = await executeSqlInTenantDb(slug, customSql);
+      return NextResponse.json({ success: true, result });
     }
 
     return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });

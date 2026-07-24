@@ -27,16 +27,25 @@ export const StudioSchemaDiagram: React.FC<StudioSchemaDiagramProps> = ({ projec
   const [loading, setLoading] = useState(true);
   const [loadingTemplate, setLoadingTemplate] = useState<string | null>(null);
 
-  const baseUrl = `https://db.orfa.dev/p/${project.slug}`;
+  const baseUrl = typeof window !== "undefined" ? window.location.origin + `/p/${project.slug}` : `/p/${project.slug}`;
 
   const fetchSchema = async () => {
     setLoading(true);
     try {
-      const res = await fetch(baseUrl, {
+      // Direct PostgreSQL Schema Discovery
+      const res = await fetch(`/api/schema/${project.slug}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.tables) && data.tables.length > 0) {
+        setTables(data.tables);
+        return;
+      }
+
+      // Fallback OpenAPI
+      const openApiRes = await fetch(baseUrl, {
         headers: { Accept: "application/json", "X-Project-ID": project.slug },
       });
-      if (res.ok) {
-        const schemaObj = await res.json();
+      if (openApiRes.ok) {
+        const schemaObj = await openApiRes.json();
         if (schemaObj.paths) {
           const parsedTables = Object.keys(schemaObj.paths)
             .map((p) => p.replace("/", ""))
