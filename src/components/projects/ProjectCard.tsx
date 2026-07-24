@@ -216,15 +216,15 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         )}
       </div>
 
-      {/* Footer Controls */}
+      {/* Footer Quick Links */}
       <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs mt-2">
-        <button
-          onClick={() => onOpenExplorer(project.slug)}
-          className="text-slate-300 hover:text-blue-400 flex items-center gap-1.5 font-medium transition"
+        <a
+          href={`/project/${project.slug}`}
+          className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 font-semibold transition bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg"
         >
           <ExternalLink className="w-3.5 h-3.5" />
-          Data Inspector (PostgREST)
-        </button>
+          Open Supabase Studio
+        </a>
 
         <span className="text-[11px] text-slate-500 font-mono">
           {project.id.slice(0, 12)}

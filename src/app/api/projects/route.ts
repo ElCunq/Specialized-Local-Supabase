@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureDbMigrated } from "@/db";
 import { tenants, apiKeys } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateRandomSecret, generateProjectJwtTokens } from "@/lib/security/crypto";
@@ -7,6 +7,7 @@ import { createTenantPod } from "@/lib/docker/orchestrator";
 
 export async function GET() {
   try {
+    await ensureDbMigrated();
     const allProjects = await db.select().from(tenants);
     return NextResponse.json({ success: true, projects: allProjects });
   } catch (error: any) {
@@ -16,6 +17,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDbMigrated();
     const body = await req.json();
     const { name, slug: rawSlug } = body;
 
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
       },
     ]);
 
-    // Asynchronously or synchronously spin up Docker Tenant Pod
+    // Spin up Docker Tenant Pod
     try {
       await createTenantPod({
         id,
