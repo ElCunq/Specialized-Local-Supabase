@@ -1,10 +1,11 @@
-# Step 1: Install dependencies
+# Step 1: Install dependencies with npm cache
 FROM node:20-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
 
-# Step 2: Build Next.js application
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+# Step 2: Build Next.js application with Next build cache
 FROM node:20-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -13,7 +14,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 # Step 3: Production runner image
 FROM node:20-slim AS runner
