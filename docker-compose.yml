@@ -36,14 +36,17 @@ services:
       - "traefik.http.routers.control-plane.entrypoints=web,websecure"
       - "traefik.http.services.control-plane.loadbalancer.server.port=3000"
     environment:
-      - DATABASE_URL=file:master_control_plane.db
+      - DATABASE_URL=file:/app/data/master_control_plane.db
       - DOCKER_SOCKET=/var/run/docker.sock
       - TRAEFIK_NETWORK=traefik-public
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./master_control_plane.db:/app/master_control_plane.db
+      - control_plane_data:/app/data
     networks:
       - traefik-public
+
+volumes:
+  control_plane_data:
 
 networks:
   traefik-public:
