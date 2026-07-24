@@ -15,7 +15,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080" # Traefik Dashboard (Internal/Dev)
+      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -23,13 +23,15 @@ services:
 
   # Control Plane (Next.js Orchestrator Dashboard)
   control-plane:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: db_orfa_control_plane
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=master_control_plane.db
+      - DATABASE_URL=file:master_control_plane.db
       - DOCKER_SOCKET=/var/run/docker.sock
       - TRAEFIK_NETWORK=traefik-public
     volumes:

@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   experimental: {
-    serverComponentsExternalPackages: ["dockerode", "@libsql/client", "better-sqlite3"],
+    serverComponentsExternalPackages: ["dockerode", "@libsql/client"],
   },
 };
 
