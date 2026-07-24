@@ -13,6 +13,8 @@ import {
   ArrowLeft,
   Webhook,
   BookOpen,
+  Activity,
+  Layers,
 } from "lucide-react";
 
 export type StudioTab =
@@ -24,6 +26,7 @@ export type StudioTab =
   | "storage"
   | "webhooks"
   | "docs"
+  | "metrics"
   | "settings";
 
 interface StudioSidebarProps {
@@ -41,11 +44,12 @@ export const StudioSidebar: React.FC<StudioSidebarProps> = ({
     { id: "overview", label: "Project Overview", icon: <Home className="w-4 h-4" /> },
     { id: "editor", label: "Table Editor", icon: <Table className="w-4 h-4" /> },
     { id: "sql", label: "SQL Editor", icon: <Terminal className="w-4 h-4" /> },
-    { id: "database", label: "Database", icon: <Database className="w-4 h-4" /> },
+    { id: "database", label: "Schema Diagrams", icon: <Layers className="w-4 h-4" /> },
     { id: "auth", label: "Authentication", icon: <Users className="w-4 h-4" /> },
     { id: "storage", label: "Storage", icon: <HardDrive className="w-4 h-4" /> },
     { id: "webhooks", label: "Webhooks & AI Vector", icon: <Webhook className="w-4 h-4" /> },
     { id: "docs", label: "API Docs & SDKs", icon: <BookOpen className="w-4 h-4" /> },
+    { id: "metrics", label: "Live Metrics", icon: <Activity className="w-4 h-4" /> },
     { id: "settings", label: "Project Settings", icon: <Settings className="w-4 h-4" /> },
   ];
 
