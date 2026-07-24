@@ -22,7 +22,9 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({ project }) => {
   const [copied, setCopied] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
 
-  const apiUrl = `https://db.orfa.dev/p/${project.slug}`;
+  const domain = typeof window !== "undefined" ? window.location.host : "localhost:3000";
+  const protocol = typeof window !== "undefined" ? window.location.protocol : "http:";
+  const apiUrl = `${protocol}//${domain}/p/${project.slug}`;
 
   const copyUrl = () => {
     navigator.clipboard.writeText(apiUrl);
@@ -37,7 +39,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({ project }) => {
         <div className="flex items-center gap-2 font-medium">
           <div className="flex items-center gap-1.5 hover:text-white cursor-pointer">
             <span className="p-1 rounded bg-[#1f1f1f] text-emerald-400 font-bold">⚡</span>
-            <span>ElCunq's Org</span>
+            <span>Local Org</span>
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#1f1f1f] border border-[#2e2e2e] text-slate-400 font-mono">
               FREE
             </span>

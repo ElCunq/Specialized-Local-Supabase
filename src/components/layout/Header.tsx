@@ -22,9 +22,9 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-white tracking-tight">db.orfa.dev</h1>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-mono">
-              Control Plane v1.0
+            <h1 className="text-xl font-bold text-white tracking-tight">SupaBase Local</h1>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono">
+              Orchestrator v1.0
             </span>
           </div>
           <p className="text-xs text-slate-400">

@@ -28,7 +28,9 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
   onTabChange,
 }) => {
   const [copied, setCopied] = useState(false);
-  const apiUrl = `https://db.orfa.dev/p/${project.slug}`;
+  const domain = typeof window !== "undefined" ? window.location.host : "localhost:3000";
+  const protocol = typeof window !== "undefined" ? window.location.protocol : "http:";
+  const apiUrl = `${protocol}//${domain}/p/${project.slug}`;
 
   const copyUrl = () => {
     navigator.clipboard.writeText(apiUrl);
