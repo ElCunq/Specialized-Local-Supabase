@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="supaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <!-- Background Badge -->
+  <rect width="512" height="512" rx="128" fill="#121212" />
+  <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="#282828" stroke-width="8" />
+  
+  <!-- Supabase Lightning Bolt Custom Shape -->
+  <path d="M 290,60 L 130,280 L 250,280 L 190,450 L 380,210 L 260,210 Z" fill="url(#supaGrad)" filter="url(#glow)" />
+  <!-- Secondary Accent Bolt Layer -->
+  <path d="M 280,100 L 165,270 L 255,270 L 210,410 L 350,230 L 265,230 Z" fill="#3ecf8e" opacity="0.9" />
+</svg>

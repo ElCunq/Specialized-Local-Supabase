@@ -59,8 +59,8 @@ export const StudioSidebar: React.FC<StudioSidebarProps> = ({
       <div>
         {/* Supabase Emerald Logo */}
         <div className="h-14 border-b border-[#282828] px-4 flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20">
-            ⚡
+          <div className="w-8 h-8 rounded-lg bg-[#121212] border border-[#282828] p-1 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <img src="/icon.svg" alt="SupaBase Logo" className="w-full h-full" />
           </div>
           <span className="hidden md:inline font-bold text-sm text-white tracking-tight">
             Supabase Studio

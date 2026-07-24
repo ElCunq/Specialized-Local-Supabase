@@ -17,8 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 w-full glass-panel border-b border-slate-800/80 px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400">
-          <Database className="w-6 h-6" />
+        <div className="w-10 h-10 rounded-xl bg-[#121212] border border-[#282828] p-1 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <img src="/icon.svg" alt="SupaBase Logo" className="w-full h-full" />
         </div>
         <div>
           <div className="flex items-center gap-2">
