@@ -8,8 +8,8 @@ services:
       dockerfile: Dockerfile
     container_name: db_orfa_control_plane
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       - DATABASE_URL=file:/app/data/master_control_plane.db
       - DOCKER_SOCKET=/var/run/docker.sock
