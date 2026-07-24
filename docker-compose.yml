@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  # API Gateway (Traefik v3 Proxy)
+  traefik:
+    image: traefik:v3.0
+    container_name: db_orfa_gateway
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Traefik Dashboard (Internal/Dev)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-public
+
+  # Control Plane (Next.js Orchestrator Dashboard)
+  control-plane:
+    build: .
+    container_name: db_orfa_control_plane
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=master_control_plane.db
+      - DOCKER_SOCKET=/var/run/docker.sock
+      - TRAEFIK_NETWORK=traefik-public
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./master_control_plane.db:/app/master_control_plane.db
+    networks:
+      - traefik-public
+
+networks:
+  traefik-public:
+    external: true
