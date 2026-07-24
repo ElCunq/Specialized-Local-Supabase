@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { tenants } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { initTenantDbRoles } from "@/lib/docker/orchestrator";
 
 async function proxyToPostgrest(
   req: NextRequest,
@@ -18,7 +19,6 @@ async function proxyToPostgrest(
       );
     }
 
-    // Correct container names matching orchestrator.ts (project_${slug}_rest)
     const targetHosts = [
       `http://project_${slug}_rest:3000`,
       `http://db_tenant_${slug}_rest:3000`,
@@ -31,6 +31,10 @@ async function proxyToPostgrest(
         reqHeaders[key] = val;
       }
     });
+
+    if (!reqHeaders["accept"]) {
+      reqHeaders["accept"] = "application/json";
+    }
 
     // Inject apikey & Authorization header for tenant
     if (!reqHeaders["apikey"] && tenant.anonKey) {
@@ -57,6 +61,11 @@ async function proxyToPostgrest(
           // @ts-ignore
           duplex: body ? "half" : undefined,
         });
+
+        // If PostgREST returned 400 (likely missing anon role), auto-initialize DB roles once
+        if (proxyRes.status === 400) {
+          await initTenantDbRoles(`project_${slug}_db`);
+        }
 
         const resHeaders = new Headers();
         proxyRes.headers.forEach((v, k) => {

@@ -50,6 +50,9 @@ export async function createTenantPod(params: CreateTenantPodParams) {
   // Start DB Container first
   await dbContainer.start();
 
+  // Initialize standard Supabase roles (anon, authenticated, service_role)
+  await initTenantDbRoles(dbContainerName);
+
   // 4. Generate Traefik Dynamic Routing Labels for PostgREST
   const traefikLabels = generateTraefikLabels({ slug });
 
@@ -235,4 +238,44 @@ function calculateCpuPercent(stats: any): number {
     return (cpuDelta / systemCpuDelta) * numberCpus * 100;
   }
   return 0;
+}
+
+/**
+ * Initializes standard Supabase roles (anon, authenticated, service_role) and grants schema permissions
+ */
+export async function initTenantDbRoles(dbContainerName: string) {
+  try {
+    const container = docker.getContainer(dbContainerName);
+    const sql = `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+          CREATE ROLE anon NOLOGIN NOINHERIT;
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+          CREATE ROLE authenticated NOLOGIN NOINHERIT;
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+          CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
+        END IF;
+      END $$;
+      GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+      GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+      GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+    `;
+
+    // Wait for Postgres to be ready
+    await new Promise((r) => setTimeout(r, 2500));
+
+    const exec = await container.exec({
+      Cmd: ["psql", "-U", "postgres", "-d", "postgres", "-c", sql],
+      AttachStdout: true,
+      AttachStderr: true,
+    });
+
+    await exec.start({});
+  } catch (err) {
+    console.error("[DB Init Roles Error]", err);
+  }
 }
