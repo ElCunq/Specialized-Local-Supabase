@@ -15,16 +15,16 @@ async function proxyToPostgrestSubpath(
     const [tenant] = await db.select().from(tenants).where(eq(tenants.slug, slug));
     if (!tenant) {
       return NextResponse.json(
-        { error: `Tenant project '${slug}' not found.` },
+        { error: `Tenant project '${slug}' not found in database.` },
         { status: 404 }
       );
     }
 
-    // Determine PostgREST internal docker host / URL
+    // Correct container names matching orchestrator.ts (project_${slug}_rest)
     const targetHosts = [
+      `http://project_${slug}_rest:3000`,
       `http://db_tenant_${slug}_rest:3000`,
       tenant.restPort ? `http://127.0.0.1:${tenant.restPort}` : null,
-      `http://localhost:${tenant.restPort || 3000}`,
     ].filter(Boolean) as string[];
 
     const reqHeaders: Record<string, string> = {};
@@ -76,7 +76,7 @@ async function proxyToPostgrestSubpath(
 
     return NextResponse.json(
       {
-        error: `Could not connect to PostgREST container for tenant '${slug}'. Make sure pod is running.`,
+        error: `Could not connect to PostgREST container (project_${slug}_rest). Container may be starting or paused.`,
         details: lastError?.message,
       },
       { status: 502 }
