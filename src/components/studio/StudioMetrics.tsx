@@ -1,35 +1,76 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Tenant } from "@/db/schema";
-import { Activity, Cpu, HardDrive, Database, RefreshCw, Terminal } from "lucide-react";
+import { Activity, Cpu, HardDrive, Database, Gauge, ShieldAlert } from "lucide-react";
 
 interface StudioMetricsProps {
   project: Tenant;
 }
 
 export const StudioMetrics: React.FC<StudioMetricsProps> = ({ project }) => {
-  const [metrics, setMetrics] = useState({
+  const [metrics] = useState({
     cpuUsage: 0.2,
     ramMb: 24.5,
     maxRamMb: 512,
+    dbSizeMb: 12.4,
+    maxDbSizeMb: 500, // 500 MB Quota
+    storageMb: 4.2,
+    maxStorageMb: 1000, // 1 GB Quota
     connections: 5,
     maxConnections: 60,
   });
 
   return (
-    <div className="p-6 md:p-8 space-y-8 bg-[#121212] min-h-full text-slate-200">
+    <div className="p-6 md:p-8 space-y-8 bg-[#121212] min-h-full text-slate-200 select-text">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-xl font-bold text-white tracking-tight">Live Metrics & Container Health</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">Live Metrics, Container Health & Quotas</h2>
           </div>
-          <p className="text-xs text-slate-400 mt-1">Real-time resource utilization and query logs for /{project.slug}.</p>
+          <p className="text-xs text-slate-400 mt-1">Real-time resource utilization and quota limits for /{project.slug}.</p>
         </div>
       </div>
 
-      {/* Metrics Grid */}
+      {/* Quota Limits Banner */}
+      <div className="p-6 rounded-xl bg-[#171717] border border-[#282828] space-y-4">
+        <div className="flex items-center justify-between text-xs font-bold text-white border-b border-[#282828] pb-3">
+          <span className="flex items-center gap-2">
+            <Gauge className="w-4 h-4 text-amber-400" />
+            Müşteri Paket Kotaları ve Tüketim Durumu (Plan Quotas)
+          </span>
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            PRO PLAN ACTIVE
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-mono">
+          {/* DB Quota */}
+          <div className="p-4 rounded-xl bg-[#121212] border border-[#282828] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Veritabanı Boyut Kotası</span>
+              <span className="text-emerald-400 font-bold">{metrics.dbSizeMb} MB / {metrics.maxDbSizeMb} MB</span>
+            </div>
+            <div className="w-full h-2 bg-[#171717] rounded-full overflow-hidden border border-[#282828]">
+              <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(metrics.dbSizeMb / metrics.maxDbSizeMb) * 100}%` }} />
+            </div>
+          </div>
+
+          {/* Storage Quota */}
+          <div className="p-4 rounded-xl bg-[#121212] border border-[#282828] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Dosya Depolama (Storage) Kotası</span>
+              <span className="text-blue-400 font-bold">{metrics.storageMb} MB / {metrics.maxStorageMb} MB</span>
+            </div>
+            <div className="w-full h-2 bg-[#171717] rounded-full overflow-hidden border border-[#282828]">
+              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(metrics.storageMb / metrics.maxStorageMb) * 100}%` }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Resource Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* CPU */}
         <div className="p-6 rounded-xl bg-[#171717] border border-[#282828] space-y-3">
