@@ -3,7 +3,7 @@ import { generateTraefikLabels } from "../traefik/labels";
 import { CreateTenantPodParams, TenantPodStatus } from "./types";
 
 const PUBLIC_GATEWAY_NETWORK = process.env.TRAEFIK_NETWORK || "coolify";
-const POSTGRES_IMAGE = "postgres:15-alpine";
+const POSTGRES_IMAGE = "supabase/postgres:15.1.1.78";
 const POSTGREST_IMAGE = "postgrest/postgrest:v12.2.0";
 
 /**

@@ -11,10 +11,18 @@ import {
   HardDrive,
   Settings,
   ArrowLeft,
-  Zap,
+  Webhook,
 } from "lucide-react";
 
-export type StudioTab = "overview" | "editor" | "sql" | "database" | "auth" | "storage" | "settings";
+export type StudioTab =
+  | "overview"
+  | "editor"
+  | "sql"
+  | "database"
+  | "auth"
+  | "storage"
+  | "webhooks"
+  | "settings";
 
 interface StudioSidebarProps {
   activeTab: StudioTab;
@@ -34,6 +42,7 @@ export const StudioSidebar: React.FC<StudioSidebarProps> = ({
     { id: "database", label: "Database", icon: <Database className="w-4 h-4" /> },
     { id: "auth", label: "Authentication", icon: <Users className="w-4 h-4" /> },
     { id: "storage", label: "Storage", icon: <HardDrive className="w-4 h-4" /> },
+    { id: "webhooks", label: "Webhooks & AI Vector", icon: <Webhook className="w-4 h-4" /> },
     { id: "settings", label: "Project Settings", icon: <Settings className="w-4 h-4" /> },
   ];
 

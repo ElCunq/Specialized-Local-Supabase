@@ -11,6 +11,7 @@ import { StudioSqlEditor } from "@/components/studio/StudioSqlEditor";
 import { StudioAuth } from "@/components/studio/StudioAuth";
 import { StudioSettings } from "@/components/studio/StudioSettings";
 import { StudioStorage } from "@/components/studio/StudioStorage";
+import { StudioWebhooks } from "@/components/studio/StudioWebhooks";
 import { Loader2, AlertCircle } from "lucide-react";
 
 export default function ProjectStudioPage() {
@@ -95,6 +96,8 @@ export default function ProjectStudioPage() {
           {activeTab === "auth" && <StudioAuth project={project} />}
 
           {activeTab === "storage" && <StudioStorage project={project} />}
+
+          {activeTab === "webhooks" && <StudioWebhooks project={project} />}
 
           {activeTab === "settings" && <StudioSettings project={project} />}
         </main>
