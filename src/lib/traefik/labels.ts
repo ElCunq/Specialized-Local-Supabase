@@ -17,7 +17,7 @@ export function generateTraefikLabels(options: TraefikLabelOptions): Record<stri
 
   return {
     "traefik.enable": "true",
-    "traefik.docker.network": "traefik-public",
+    "traefik.docker.network": process.env.TRAEFIK_NETWORK || "coolify",
 
     // Service definition
     [`traefik.http.services.${routerName}.loadbalancer.server.port`]: String(targetPort),

@@ -2,7 +2,7 @@ import { docker, ensureNetworkExists } from "./client";
 import { generateTraefikLabels } from "../traefik/labels";
 import { CreateTenantPodParams, TenantPodStatus } from "./types";
 
-const PUBLIC_GATEWAY_NETWORK = process.env.TRAEFIK_NETWORK || "traefik-public";
+const PUBLIC_GATEWAY_NETWORK = process.env.TRAEFIK_NETWORK || "coolify";
 const POSTGRES_IMAGE = "postgres:15-alpine";
 const POSTGREST_IMAGE = "postgrest/postgrest:v12.2.0";
 
