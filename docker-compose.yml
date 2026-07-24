@@ -28,8 +28,13 @@ services:
       dockerfile: Dockerfile
     container_name: db_orfa_control_plane
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.control-plane.rule=Host(`db.orfa.dev`)"
+      - "traefik.http.routers.control-plane.entrypoints=web,websecure"
+      - "traefik.http.services.control-plane.loadbalancer.server.port=3000"
     environment:
       - DATABASE_URL=file:master_control_plane.db
       - DOCKER_SOCKET=/var/run/docker.sock
