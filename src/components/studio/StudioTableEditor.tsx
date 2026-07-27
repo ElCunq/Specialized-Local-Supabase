@@ -186,15 +186,39 @@ export const StudioTableEditor: React.FC<StudioTableEditorProps> = ({ project })
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSelectedTable(selectedTable)}
-              className="p-1.5 rounded-md hover:bg-[#282828] text-slate-400 hover:text-white"
+              className="p-1.5 rounded-md hover:bg-[#282828] text-slate-400 hover:text-white cursor-pointer"
               title="Yenile"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
 
+            {rows.length > 0 && (
+              <button
+                onClick={() => {
+                  const headers = Object.keys(rows[0]).join(",");
+                  const csvRows = rows.map((r) =>
+                    Object.values(r)
+                      .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+                      .join(",")
+                  );
+                  const csvContent = "data:text/csv;charset=utf-8," + [headers, ...csvRows].join("\n");
+                  const encodedUri = encodeURI(csvContent);
+                  const link = document.createElement("a");
+                  link.setAttribute("href", encodedUri);
+                  link.setAttribute("download", `${selectedTable}_export.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                className="px-2.5 py-1 rounded-md bg-[#242424] border border-[#333] hover:bg-[#2e2e2e] text-slate-300 font-mono text-[11px] cursor-pointer"
+              >
+                CSV İndir
+              </button>
+            )}
+
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-1 px-3 py-1 rounded-md bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition"
+              className="flex items-center gap-1 px-3 py-1 rounded-md bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               Görsel Tablo Ekle
