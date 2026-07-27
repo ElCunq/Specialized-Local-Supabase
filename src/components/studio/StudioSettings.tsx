@@ -10,11 +10,12 @@ import {
   Eye,
   EyeOff,
   Download,
-  Upload,
   Mail,
   Save,
   Loader2,
   HardDrive,
+  FileCode,
+  Lock,
 } from "lucide-react";
 
 interface StudioSettingsProps {
@@ -24,6 +25,10 @@ interface StudioSettingsProps {
 export const StudioSettings: React.FC<StudioSettingsProps> = ({ project }) => {
   const [copiedAnon, setCopiedAnon] = useState(false);
   const [copiedService, setCopiedService] = useState(false);
+  const [copiedDbPassword, setCopiedDbPassword] = useState(false);
+  const [copiedJwtSecret, setCopiedJwtSecret] = useState(false);
+  const [copiedConnString, setCopiedConnString] = useState(false);
+  const [copiedEnv, setCopiedEnv] = useState(false);
   const [showSecrets, setShowSecrets] = useState(false);
 
   // SMTP Settings State
@@ -41,8 +46,34 @@ export const StudioSettings: React.FC<StudioSettingsProps> = ({ project }) => {
     setTimeout(() => setter(false), 2000);
   };
 
-  const domain = typeof window !== "undefined" ? window.location.host : "localhost:3000";
+  const domain = typeof window !== "undefined" ? window.location.host : "db.orfa.dev";
   const postgresConnString = `postgres://postgres:${project.dbPassword}@${domain}:5432/postgres`;
+
+  const fullEnvTemplate = `PORT=3000
+NODE_ENV=production
+
+# Supabase / PostgreSQL Connection
+DB_HOST=${domain}
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=${project.dbPassword}
+DB_NAME=postgres
+DB_SSL=false
+
+# JWT Secret & Keys
+JWT_SECRET=${project.jwtSecret || project.serviceKey}
+JWT_EXPIRES_IN=1h
+JWT_REFRESH_SECRET=${project.serviceKey}
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Project REST & GraphQL API Endpoints
+NEXT_PUBLIC_SUPABASE_URL=https://${domain}/p/${project.slug}
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${project.anonKey}
+SUPABASE_SERVICE_ROLE_KEY=${project.serviceKey}
+
+# Domain Configuration
+SYSTEM_DOMAIN=${domain}
+`;
 
   const handleDownloadBackup = () => {
     window.open(`/api/backup/${project.slug}`, "_blank");
@@ -60,134 +91,147 @@ export const StudioSettings: React.FC<StudioSettingsProps> = ({ project }) => {
 
   return (
     <div className="p-6 md:p-8 space-y-8 bg-[#121212] min-h-full text-slate-200 select-text">
-      <div>
-        <h2 className="text-xl font-bold text-white tracking-tight">Proje Ayarları & Yapılandırma</h2>
-        <p className="text-xs text-slate-400">API keys, PostgreSQL connections, Backup dumps & Custom SMTP email settings for /{project.slug}.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Proje Ayarları & Yapılandırma</h2>
+          <p className="text-xs text-slate-400">Database passwords, JWT secrets, connection strings, .env generator & backup tools for /{project.slug}.</p>
+        </div>
+
+        <button
+          onClick={() => setShowSecrets(!showSecrets)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#171717] border border-[#282828] text-xs text-slate-300 hover:text-white transition cursor-pointer"
+        >
+          {showSecrets ? <EyeOff className="w-4 h-4 text-amber-400" /> : <Eye className="w-4 h-4 text-emerald-400" />}
+          {showSecrets ? "Gizli Anahtarları Gizle" : "Gizli Anahtarları Göster (Reveal Secrets)"}
+        </button>
       </div>
 
-      {/* Database Backup & Restore Panel */}
-      <div className="rounded-xl bg-[#171717] border border-[#282828] p-6 space-y-4">
+      {/* Ready-to-copy .env Generator */}
+      <div className="rounded-xl bg-[#171717] border border-emerald-500/30 p-6 space-y-4 shadow-lg shadow-emerald-500/5">
         <div className="flex items-center justify-between border-b border-[#282828] pb-4">
           <div className="flex items-center gap-2">
-            <HardDrive className="w-5 h-5 text-emerald-400" />
+            <FileCode className="w-5 h-5 text-emerald-400" />
             <div>
-              <h3 className="text-sm font-bold text-white">Tek Tıkla Veri Tabanı Yedeği & Geri Yükleme</h3>
-              <p className="text-[10px] text-slate-400">PostgreSQL `.sql` dump export & import engine.</p>
+              <h3 className="text-sm font-bold text-white">Tek Tıkla Hazır `.env` Dosyası Oluşturucu</h3>
+              <p className="text-[10px] text-slate-400">Projeniz için doldurulmuş tüm bağlantı değişkenlerini tek tıkla kopyalayın.</p>
             </div>
           </div>
 
           <button
-            onClick={handleDownloadBackup}
+            onClick={() => copyText(fullEnvTemplate, setCopiedEnv)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
           >
-            <Download className="w-4 h-4" />
-            Yedek İndir (.sql)
+            {copiedEnv ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copiedEnv ? "Tüm .env Kopyalandı!" : ".env Kopyala"}
           </button>
         </div>
 
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Veritabanınızın tüm tablolarını, verilerini ve şemasını tek bir tıklama ile `.sql` dosyası olarak bilgisayarınıza indirebilirsiniz.
-        </p>
+        <div className="p-4 rounded-xl bg-[#121212] border border-[#282828] font-mono text-xs text-emerald-300 overflow-x-auto">
+          <pre>{showSecrets ? fullEnvTemplate : fullEnvTemplate.replace(/DB_PASSWORD=.*/, "DB_PASSWORD=••••••••••••").replace(/JWT_SECRET=.*/, "JWT_SECRET=••••••••••••")}</pre>
+        </div>
       </div>
 
-      {/* Custom SMTP Email Settings Panel */}
-      <div className="rounded-xl bg-[#171717] border border-[#282828] p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[#282828] pb-4">
-          <div className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-blue-400" />
-            <div>
-              <h3 className="text-sm font-bold text-white">Özel E-Posta Gönderim Ayarları (SMTP Integration)</h3>
-              <p className="text-[10px] text-slate-400">Configure SMTP server for password reset & welcome emails.</p>
-            </div>
+      {/* Database Credentials & Password */}
+      <div className="rounded-xl bg-[#171717] border border-[#282828] p-6 space-y-6">
+        <div className="flex items-center gap-2 border-b border-[#282828] pb-4">
+          <Database className="w-5 h-5 text-blue-400" />
+          <div>
+            <h3 className="text-sm font-bold text-white">PostgreSQL Veritabanı Bilgileri (Database Credentials)</h3>
+            <p className="text-[10px] text-slate-400">PostgreSQL host, port, user and container database password.</p>
           </div>
         </div>
 
-        <form onSubmit={handleSaveSmtp} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div>
-            <label className="block text-slate-400 mb-1">SMTP Server Host</label>
-            <input
-              type="text"
-              value={smtpHost}
-              onChange={(e) => setSmtpHost(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-[#121212] border border-[#282828] text-white outline-none focus:border-blue-500 font-mono"
-            />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          <div className="p-3 rounded-xl bg-[#121212] border border-[#282828]">
+            <span className="text-slate-500 block text-[10px] uppercase">DB Host</span>
+            <span className="text-white font-semibold">{domain}</span>
           </div>
 
-          <div>
-            <label className="block text-slate-400 mb-1">Port</label>
-            <input
-              type="text"
-              value={smtpPort}
-              onChange={(e) => setSmtpPort(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-[#121212] border border-[#282828] text-white outline-none focus:border-blue-500 font-mono"
-            />
+          <div className="p-3 rounded-xl bg-[#121212] border border-[#282828]">
+            <span className="text-slate-500 block text-[10px] uppercase">DB Port</span>
+            <span className="text-white font-semibold">5432</span>
           </div>
 
-          <div>
-            <label className="block text-slate-400 mb-1">SMTP Kullanıcı Adı</label>
-            <input
-              type="text"
-              value={smtpUser}
-              onChange={(e) => setSmtpUser(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-[#121212] border border-[#282828] text-white outline-none focus:border-blue-500 font-mono"
-            />
+          <div className="p-3 rounded-xl bg-[#121212] border border-[#282828]">
+            <span className="text-slate-500 block text-[10px] uppercase">DB User</span>
+            <span className="text-white font-semibold">postgres</span>
           </div>
 
-          <div>
-            <label className="block text-slate-400 mb-1">SMTP Şifresi</label>
-            <input
-              type="password"
-              placeholder="••••••••••••"
-              value={smtpPass}
-              onChange={(e) => setSmtpPass(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-[#121212] border border-[#282828] text-white outline-none focus:border-blue-500 font-mono"
-            />
+          <div className="p-3 rounded-xl bg-[#121212] border border-[#282828]">
+            <span className="text-slate-500 block text-[10px] uppercase">DB Name</span>
+            <span className="text-white font-semibold">postgres</span>
           </div>
+        </div>
 
-          <div className="md:col-span-2">
-            <label className="block text-slate-400 mb-1">Gönderici E-Posta Adresi (From Email)</label>
-            <input
-              type="email"
-              value={fromEmail}
-              onChange={(e) => setFromEmail(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-[#121212] border border-[#282828] text-emerald-400 outline-none font-mono"
-            />
+        {/* DB Password */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-emerald-400">Veritabanı Şifresi (DB Password)</span>
+            <span className="text-slate-500 text-[10px]">PostgreSQL Admin Pass</span>
           </div>
-
-          <div className="md:col-span-2 pt-2">
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
+            <span className="flex-1 truncate text-slate-300">
+              {showSecrets ? project.dbPassword : "••••••••••••••••••••••••••••••••"}
+            </span>
             <button
-              type="submit"
-              disabled={savingSmtp}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition cursor-pointer"
+              onClick={() => copyText(project.dbPassword || "", setCopiedDbPassword)}
+              className="p-1.5 rounded text-slate-400 hover:text-white cursor-pointer"
             >
-              {savingSmtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {smtpSaved ? "SMTP Ayarları Kaydedildi!" : "SMTP Ayarlarını Kaydet"}
+              {copiedDbPassword ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
-        </form>
+        </div>
+
+        {/* PostgreSQL Connection String */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-purple-400">PostgreSQL Connection String</span>
+            <span className="text-slate-500 text-[10px]">URI Format</span>
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
+            <span className="flex-1 truncate text-slate-300">
+              {showSecrets ? postgresConnString : `postgres://postgres:••••••••@${domain}:5432/postgres`}
+            </span>
+            <button
+              onClick={() => copyText(postgresConnString, setCopiedConnString)}
+              className="p-1.5 rounded text-slate-400 hover:text-white cursor-pointer"
+            >
+              {copiedConnString ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* API Keys Panel */}
+      {/* JWT & API Keys Panel */}
       <div className="rounded-xl bg-[#171717] border border-[#282828] p-6 space-y-6">
-        <div className="flex items-center justify-between border-b border-[#282828] pb-4">
-          <div className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-bold text-white">Project API Keys</h3>
-          </div>
+        <div className="flex items-center gap-2 border-b border-[#282828] pb-4">
+          <Key className="w-5 h-5 text-amber-400" />
+          <h3 className="text-sm font-bold text-white">JWT Secrets & Project API Keys</h3>
+        </div>
 
-          <button
-            onClick={() => setShowSecrets(!showSecrets)}
-            className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 cursor-pointer"
-          >
-            {showSecrets ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {showSecrets ? "Hide Secrets" : "Reveal Secrets"}
-          </button>
+        {/* JWT Secret */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-amber-400">JWT Secret (JWT_SECRET)</span>
+            <span className="text-slate-500 text-[10px]">GoTrue & PostgREST HMAC Secret</span>
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
+            <span className="flex-1 truncate text-slate-300">
+              {showSecrets ? project.jwtSecret : "••••••••••••••••••••••••••••••••••••••••"}
+            </span>
+            <button
+              onClick={() => copyText(project.jwtSecret || "", setCopiedJwtSecret)}
+              className="p-1.5 rounded text-slate-400 hover:text-white cursor-pointer"
+            >
+              {copiedJwtSecret ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
         {/* Anon Key */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-white">anon (public)</span>
+            <span className="text-white">anon (public key)</span>
             <span className="text-slate-500 text-[10px]">Client-side Safe</span>
           </div>
           <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
@@ -206,7 +250,7 @@ export const StudioSettings: React.FC<StudioSettingsProps> = ({ project }) => {
         {/* Service Role Key */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-rose-400">service_role (secret)</span>
+            <span className="text-rose-400">service_role (secret key)</span>
             <span className="text-rose-500/80 text-[10px]">Bypasses RLS - Keep Private!</span>
           </div>
           <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
@@ -220,6 +264,27 @@ export const StudioSettings: React.FC<StudioSettingsProps> = ({ project }) => {
               {copiedService ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Database Backup Panel */}
+      <div className="rounded-xl bg-[#171717] border border-[#282828] p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-[#282828] pb-4">
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-5 h-5 text-emerald-400" />
+            <div>
+              <h3 className="text-sm font-bold text-white">Tek Tıkla Veri Tabanı Yedeği & Geri Yükleme</h3>
+              <p className="text-[10px] text-slate-400">PostgreSQL `.sql` dump export engine.</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleDownloadBackup}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            Yedek İndir (.sql)
+          </button>
         </div>
       </div>
     </div>
