@@ -1,11 +1,9 @@
-# syntax=docker/dockerfile:1
-
-# Step 1: Install dependencies with npm cache
+# Step 1: Install dependencies
 FROM node:20-slim AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN npm ci
 
 # Step 2: Build Next.js standalone application
 FROM node:20-slim AS builder
@@ -16,7 +14,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 
-RUN --mount=type=cache,target=/app/.next/cache npm run build
+RUN npm run build
 
 # Step 3: Minimal Standalone Production Runner (~70MB)
 FROM node:20-slim AS runner
