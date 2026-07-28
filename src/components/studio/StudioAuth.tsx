@@ -217,11 +217,12 @@ export const StudioAuth: React.FC<StudioAuthProps> = ({ project }) => {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#121212] border border-[#282828] text-emerald-400 outline-none"
+                  className="w-full px-3 py-2 rounded-lg bg-[#121212] border border-[#282828] text-emerald-400 font-mono outline-none"
                 >
-                  <option value="user">user (Müşteri / Son Kullanıcı)</option>
+                  <option value="authenticated">authenticated (Giriş Yapmış Üye)</option>
+                  <option value="anon">anon (Anonim / Ziyaretçi)</option>
                   <option value="admin">admin (Yönetici)</option>
-                  <option value="editor">editor (Editör)</option>
+                  <option value="service_role">service_role (Servis / Sistem Yetkisi)</option>
                 </select>
               </div>
 

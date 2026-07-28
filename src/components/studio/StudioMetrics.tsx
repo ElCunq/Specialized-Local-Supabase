@@ -1,25 +1,50 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tenant } from "@/db/schema";
-import { Activity, Cpu, HardDrive, Database, Gauge, ShieldAlert } from "lucide-react";
+import { Activity, Cpu, HardDrive, Database, Gauge, RefreshCw } from "lucide-react";
 
 interface StudioMetricsProps {
   project: Tenant;
 }
 
 export const StudioMetrics: React.FC<StudioMetricsProps> = ({ project }) => {
-  const [metrics] = useState({
-    cpuUsage: 0.2,
-    ramMb: 24.5,
+  const [metrics, setMetrics] = useState({
+    cpuUsage: 0.1,
+    ramMb: 35.2,
     maxRamMb: 512,
-    dbSizeMb: 12.4,
+    dbSizeMb: 8.5,
     maxDbSizeMb: 500, // 500 MB Quota
-    storageMb: 4.2,
+    storageMb: 2.1,
     maxStorageMb: 1000, // 1 GB Quota
-    connections: 5,
+    connections: 3,
     maxConnections: 60,
   });
+  const [loading, setLoading] = useState(false);
+
+  const fetchLiveMetrics = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`);
+      const data = await res.json();
+      if (data.success && data.tenant?.metrics) {
+        const m = data.tenant.metrics;
+        setMetrics((prev) => ({
+          ...prev,
+          cpuUsage: m.cpuPercentage || 0.1,
+          ramMb: m.memoryUsageMb || 35.2,
+        }));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveMetrics();
+  }, [project.id]);
 
   return (
     <div className="p-6 md:p-8 space-y-8 bg-[#121212] min-h-full text-slate-200 select-text">
@@ -31,6 +56,13 @@ export const StudioMetrics: React.FC<StudioMetricsProps> = ({ project }) => {
           </div>
           <p className="text-xs text-slate-400 mt-1">Real-time resource utilization and quota limits for /{project.slug}.</p>
         </div>
+
+        <button
+          onClick={fetchLiveMetrics}
+          className="p-2 rounded-lg bg-[#171717] border border-[#282828] text-slate-400 hover:text-white transition cursor-pointer"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
       {/* Quota Limits Banner */}
@@ -82,7 +114,7 @@ export const StudioMetrics: React.FC<StudioMetricsProps> = ({ project }) => {
             <span className="font-mono text-emerald-400 font-bold">{metrics.cpuUsage}%</span>
           </div>
           <div className="w-full h-2 bg-[#121212] rounded-full overflow-hidden border border-[#282828]">
-            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${metrics.cpuUsage * 10}%` }} />
+            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(metrics.cpuUsage * 10, 100)}%` }} />
           </div>
         </div>
 
