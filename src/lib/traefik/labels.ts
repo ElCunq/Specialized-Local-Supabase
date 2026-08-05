@@ -11,12 +11,14 @@ export interface TraefikLabelOptions {
 
 export function generateTraefikLabels(options: TraefikLabelOptions): Record<string, string> {
   const { slug, domain = process.env.SYSTEM_DOMAIN || "db.orfa.dev", targetPort = 3000 } = options;
-  const routerName = `tenant-${slug}`;
-  const middlewarePrefix = `tenant-${slug}-stripprefix`;
-  const middlewareCors = `tenant-${slug}-cors`;
 
-  // Detect Traefik entrypoints from env or support both http,https and web,websecure
-  const entrypoints = process.env.TRAEFIK_ENTRYPOINTS || "http,https,web,websecure";
+  // Use unique router name prefix (tenant-rest-${slug}) to prevent collisions with Coolify app routers
+  const routerName = `tenant-rest-${slug}`;
+  const middlewarePrefix = `tenant-rest-${slug}-stripprefix`;
+  const middlewareCors = `tenant-rest-${slug}-cors`;
+
+  // Coolify Traefik entrypoints: http,https (or custom via TRAEFIK_ENTRYPOINTS env)
+  const entrypoints = process.env.TRAEFIK_ENTRYPOINTS || "http,https";
 
   return {
     "traefik.enable": "true",
@@ -28,7 +30,7 @@ export function generateTraefikLabels(options: TraefikLabelOptions): Record<stri
     // Router Rules (Path Prefix OR Header match)
     [`traefik.http.routers.${routerName}.rule`]: `Host(\`${domain}\`) && (PathPrefix(\`/p/${slug}\`) || Header(\`X-Project-ID\`, \`${slug}\`) || Header(\`X-Tenant-ID\`, \`${slug}\`))`,
 
-    // Router Entrypoints (Supports http,https and web,websecure for Coolify & Traefik)
+    // Router Entrypoints (Matches Coolify's http,https entrypoints)
     [`traefik.http.routers.${routerName}.entrypoints`]: entrypoints,
 
     // Middleware assignment (Strip Prefix for /p/{slug} requests + CORS)
