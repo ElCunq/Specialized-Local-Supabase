@@ -21,6 +21,9 @@ import {
   Server,
   Activity,
   CheckCircle,
+  Bot,
+  Download,
+  Sparkles,
 } from "lucide-react";
 
 interface StudioApiDocsProps {
@@ -32,44 +35,173 @@ export const StudioApiDocs: React.FC<StudioApiDocsProps> = ({ project }) => {
     "rest" | "graphql" | "storage" | "auth" | "webhooks" | "ui_guide"
   >("rest");
   const [selectedLang, setSelectedLang] = useState<"js" | "curl" | "python" | "flutter">("js");
-  const [tables, setTables] = useState<string[]>([]);
+  const [tables, setTables] = useState<any[]>([]);
+  const [tableNames, setTableNames] = useState<string[]>([]);
   const [activeTable, setActiveTable] = useState<string>("users");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedAiDoc, setCopiedAiDoc] = useState(false);
 
-  const baseUrl = `https://db.orfa.dev/p/${project.slug}`;
+  const domain = typeof window !== "undefined" ? window.location.host : "db.orfa.dev";
+  const baseUrl = `https://${domain}/p/${project.slug}`;
   const anonKey = project.anonKey || "YOUR_ANON_KEY";
   const serviceKey = project.serviceKey || "YOUR_SERVICE_ROLE_KEY";
   const dbPassword = project.dbPassword || "YOUR_DB_PASSWORD";
 
   useEffect(() => {
-    async function loadTables() {
+    async function loadSchema() {
       try {
-        const res = await fetch(baseUrl, {
-          headers: { Accept: "application/json", "X-Project-ID": project.slug },
-        });
-        if (res.ok) {
-          const schemaObj = await res.json();
-          if (schemaObj.paths) {
-            const tableNames = Object.keys(schemaObj.paths)
-              .map((p) => p.replace("/", ""))
-              .filter((p) => p && p !== "");
-            setTables(tableNames);
-            if (tableNames.length > 0) {
-              setActiveTable(tableNames[0]);
-            }
+        const res = await fetch(`/api/schema/${project.slug}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.tables)) {
+          setTables(data.tables);
+          const names = data.tables.map((t: any) => t.name);
+          setTableNames(names);
+          if (names.length > 0) {
+            setActiveTable(names[0]);
           }
         }
       } catch (e) {
         console.error("Error loading API schema", e);
       }
     }
-    loadTables();
-  }, [baseUrl, project.slug]);
+    loadSchema();
+  }, [project.slug]);
 
   const copyText = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Generates AI-optimized Markdown prompt context
+  const generateAiPromptDoc = () => {
+    const tableSchemasFormatted = tables.map((t: any) => {
+      const cols = Array.isArray(t.columns)
+        ? t.columns.map((c: any) => `    - ${c.name}: ${c.type}${c.is_nullable ? "" : " (NOT NULL)"}`).join("\n")
+        : "    - (No columns defined)";
+      return `### Table: public.${t.name}\n${cols}`;
+    }).join("\n\n");
+
+    return `# 🤖 SUPABASE PROJECT AI & LLM CONTEXT DOCK SPECIFICATION
+
+> **Note for AI (ChatGPT, Claude, Cursor, v0, Bolt, Windsurf):**
+> Use the following backend specifications, API keys, database schemas, and SDK snippets to generate accurate full-stack code for the project \`/${project.slug}\`.
+
+---
+
+## 1. PROJECT IDENTIFICATION & BASE URLS
+- **Project Name:** ${project.name}
+- **Project Slug:** ${project.slug}
+- **REST API Base URL:** ${baseUrl}
+- **GraphQL Base URL:** ${baseUrl}/graphql/v1
+- **Storage Base URL:** https://${domain}/api/storage/${project.slug}
+- **PostgreSQL Host:** ${domain}:5432
+- **Database Name:** postgres
+- **Database User:** postgres
+
+---
+
+## 2. API KEYS & SECURITY HEADERS
+All REST API requests must include both \`apikey\` and \`Authorization\` headers:
+- **Anon Key (Public Client):** \`${anonKey}\`
+- **Service Role Key (Admin Secret):** \`${serviceKey}\`
+
+Header Format:
+\`\`\`http
+apikey: ${anonKey}
+Authorization: Bearer ${anonKey}
+Content-Type: application/json
+\`\`\`
+
+---
+
+## 3. LIVE DATABASE TABLES & SCHEMAS
+${tables.length === 0 ? "No custom tables found yet. Default public schema." : tableSchemasFormatted}
+
+---
+
+## 4. REST API CRUD SPECIFICATIONS
+Replace \`{table}\` with any target table name (e.g. \`${activeTable || "users"}\`):
+
+### READ (Select Rows)
+- **Method:** \`GET\`
+- **Endpoint:** \`${baseUrl}/{table}\`
+- **Query Params:** \`?select=*\` (All columns), \`?id=eq.123\` (Filter by ID), \`?order=created_at.desc\` (Order)
+
+### INSERT (Create Row)
+- **Method:** \`POST\`
+- **Endpoint:** \`${baseUrl}/{table}\`
+- **Headers:** \`Prefer: return=representation\`
+- **Body:** \`{ "column_name": "value" }\`
+
+### UPDATE (Modify Row)
+- **Method:** \`PATCH\`
+- **Endpoint:** \`${baseUrl}/{table}?id=eq.123\`
+- **Body:** \`{ "column_name": "new_value" }\`
+
+### DELETE (Remove Row)
+- **Method:** \`DELETE\`
+- **Endpoint:** \`${baseUrl}/{table}?id=eq.123\`
+
+---
+
+## 5. CLIENT SDK CODE SNIPPETS
+
+### JavaScript / TypeScript (@supabase/supabase-js)
+\`\`\`typescript
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = '${baseUrl}'
+const supabaseAnonKey = '${anonKey}'
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Example: Fetch data
+const { data, error } = await supabase.from('${activeTable || "users"}').select('*')
+\`\`\`
+
+### Python (supabase-py)
+\`\`\`python
+from supabase import create_client, Client
+
+url: str = "${baseUrl}"
+key: str = "${anonKey}"
+supabase: Client = create_client(url, key)
+
+response = supabase.table("${activeTable || "users"}").select("*").execute()
+\`\`\`
+
+### Flutter / Dart (supabase_flutter)
+\`\`\`dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+await Supabase.initialize(
+  url: '${baseUrl}',
+  anonKey: '${anonKey}',
+);
+final supabase = Supabase.instance.client;
+final data = await supabase.from('${activeTable || "users"}').select();
+\`\`\`
+`;
+  };
+
+  const handleCopyAiDoc = () => {
+    const aiText = generateAiPromptDoc();
+    navigator.clipboard.writeText(aiText);
+    setCopiedAiDoc(true);
+    setTimeout(() => setCopiedAiDoc(false), 2500);
+  };
+
+  const handleDownloadAiDoc = () => {
+    const aiText = generateAiPromptDoc();
+    const blob = new Blob([aiText], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${project.slug}_ai_context.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Code Generators for REST
@@ -183,6 +315,46 @@ void main() async {
 
   return (
     <div className="p-6 md:p-8 space-y-8 bg-[#121212] min-h-full text-slate-200 select-text cursor-auto">
+      {/* AI Context Exporter Top Banner */}
+      <div className="p-6 rounded-2xl bg-[#171717] border border-purple-500/30 space-y-4 shadow-xl shadow-purple-500/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#282828] pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+              <Bot className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-white tracking-tight">AI & LLM İçin Tek Tıkla Dokümantasyon İhracı</h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase">
+                  ChatGPT / Claude / Cursor / v0 Ready
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                ChatGPT, Claude, Cursor, v0 veya Bolt gibi yapay zeka araçlarına projenizin tüm API adreslerini, veritabanı tablolarını ve anahtarlarını eksiksiz aktarın.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCopyAiDoc}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition shadow-lg shadow-purple-500/20 cursor-pointer"
+            >
+              {copiedAiDoc ? <Check className="w-4 h-4 text-emerald-400" /> : <Sparkles className="w-4 h-4 text-purple-200" />}
+              {copiedAiDoc ? "AI Dokümanı Kopyalandı!" : "AI Dokümanını Kopyala"}
+            </button>
+
+            <button
+              onClick={handleDownloadAiDoc}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#242424] border border-[#333] hover:bg-[#282828] text-slate-200 font-bold text-xs transition cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-emerald-400" />
+              Dosya İndir (.md)
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-[#282828] pb-6">
         <div>
@@ -241,10 +413,10 @@ void main() async {
                 onChange={(e) => setActiveTable(e.target.value)}
                 className="bg-[#121212] border border-[#282828] rounded-lg px-3 py-1.5 text-xs text-emerald-400 font-mono outline-none focus:border-emerald-500 cursor-pointer"
               >
-                {tables.length === 0 ? (
+                {tableNames.length === 0 ? (
                   <option value="users">users</option>
                 ) : (
-                  tables.map((t) => (
+                  tableNames.map((t) => (
                     <option key={t} value={t}>
                       public.{t}
                     </option>
@@ -418,22 +590,22 @@ void main() async {
               <p className="text-slate-400 text-[11px]">S3-compatible file storage specifications.</p>
             </div>
             <span className="px-3 py-1 rounded bg-blue-500/20 text-blue-300 font-bold select-all">
-              Base URL: https://db.orfa.dev/api/storage/{project.slug}
+              Base URL: https://${domain}/api/storage/${project.slug}
             </span>
           </div>
 
           <div className="space-y-4">
             <div className="p-4 rounded-xl bg-[#121212] border border-[#282828] space-y-2">
               <div className="font-bold text-emerald-400">1. Dosya Yükleme (Upload File)</div>
-              <div className="text-slate-300">POST /api/storage/{project.slug} (multipart/form-data)</div>
-              <pre className="p-3 rounded bg-[#171717] text-slate-300 select-text">{`curl -X POST https://db.orfa.dev/api/storage/${project.slug} \\
+              <div className="text-slate-300">POST /api/storage/${project.slug} (multipart/form-data)</div>
+              <pre className="p-3 rounded bg-[#171717] text-slate-300 select-text">{`curl -X POST https://${domain}/api/storage/${project.slug} \\
   -F "bucket=public" \\
   -F "file=@avatar.png"`}</pre>
             </div>
 
             <div className="p-4 rounded-xl bg-[#121212] border border-[#282828] space-y-2">
               <div className="font-bold text-blue-400">2. Dosyaları Listeleme (List Files)</div>
-              <div className="text-slate-300">GET /api/storage/{project.slug}?bucket=public</div>
+              <div className="text-slate-300">GET /api/storage/${project.slug}?bucket=public</div>
             </div>
           </div>
         </div>
@@ -541,7 +713,7 @@ void main() async {
             <div className="p-5 rounded-xl bg-[#171717] border border-[#282828] space-y-2">
               <div className="flex items-center gap-2 font-bold text-white text-sm">
                 <Zap className="w-4 h-4 text-cyan-400" />
-                <span>5. Webhooks & AI Vector (Tetikileyici Yöneticisi)</span>
+                <span>5. Webhooks & AI Vector (Tetikleyici Yöneticisi)</span>
               </div>
               <p className="text-slate-400 leading-relaxed">
                 Veritabanında kayıt oluştuğunda dış API'lere otomatik HTTP isteği atan Webhook'lar tanımlayabilir, `pgvector` ve `pg_graphql` eklenti durumlarını izleyebilirsiniz.
