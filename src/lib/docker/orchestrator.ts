@@ -6,6 +6,7 @@ const PUBLIC_GATEWAY_NETWORK = process.env.TRAEFIK_NETWORK || "coolify";
 const POSTGRES_IMAGE = "supabase/postgres:15.1.1.78";
 const POSTGREST_IMAGE = "postgrest/postgrest:v12.2.0";
 const POSTGRES_META_IMAGE = "supabase/postgres-meta:v0.84.1";
+const GOTRUE_IMAGE = "supabase/gotrue:v2.132.3";
 
 /**
  * Creates an isolated Tenant Pod (PostgreSQL + PostgREST + Postgres-Meta) with Traefik Proxy labels.
@@ -16,6 +17,7 @@ export async function createTenantPod(params: CreateTenantPodParams) {
   const dbContainerName = `project_${slug}_db`;
   const restContainerName = `project_${slug}_rest`;
   const metaContainerName = `project_${slug}_meta`;
+  const authContainerName = `project_${slug}_auth`;
   const networkName = `project_${slug}_net`;
   const volumeName = `project_${slug}_db_data`;
 
@@ -27,6 +29,7 @@ export async function createTenantPod(params: CreateTenantPodParams) {
   await pullImageIfNeeded(POSTGRES_IMAGE);
   await pullImageIfNeeded(POSTGREST_IMAGE);
   await pullImageIfNeeded(POSTGRES_META_IMAGE);
+  await pullImageIfNeeded(GOTRUE_IMAGE);
 
   // 3. Create PostgreSQL Container (~30MB RAM base)
   const dbContainer = await docker.createContainer({
@@ -113,10 +116,39 @@ export async function createTenantPod(params: CreateTenantPodParams) {
 
   await metaContainer.start();
 
+  // 7. Create GoTrue Container for Authentication (~20MB RAM)
+  const authContainer = await docker.createContainer({
+    Image: GOTRUE_IMAGE,
+    name: authContainerName,
+    Env: [
+      `GOTRUE_API_HOST=0.0.0.0`,
+      `GOTRUE_API_PORT=9999`,
+      `GOTRUE_DB_DRIVER=postgres`,
+      `GOTRUE_DB_DATABASE_URL=postgres://postgres:${dbPassword}@${dbContainerName}:5432/postgres`,
+      `GOTRUE_SITE_URL=http://localhost:3000`,
+      `GOTRUE_JWT_SECRET=${jwtSecret}`,
+      `GOTRUE_JWT_EXP=3600`,
+      `GOTRUE_JWT_DEFAULT_GROUP_NAME=authenticated`,
+    ],
+    HostConfig: {
+      Memory: 32 * 1024 * 1024,
+      RestartPolicy: { Name: "unless-stopped" },
+    },
+    NetworkingConfig: {
+      EndpointsConfig: {
+        [networkName]: {},
+        [PUBLIC_GATEWAY_NETWORK]: {},
+      },
+    },
+  });
+
+  await authContainer.start();
+
   return {
     dbContainerId: dbContainer.id,
     restContainerId: restContainer.id,
     metaContainerId: metaContainer.id,
+    authContainerId: authContainer.id,
     network: networkName,
   };
 }
@@ -128,12 +160,15 @@ export async function toggleTenantStatus(slug: string, action: "pause" | "resume
   const dbContainerName = `project_${slug}_db`;
   const restContainerName = `project_${slug}_rest`;
   const metaContainerName = `project_${slug}_meta`;
+  const authContainerName = `project_${slug}_auth`;
 
   const dbContainer = docker.getContainer(dbContainerName);
   const restContainer = docker.getContainer(restContainerName);
   const metaContainer = docker.getContainer(metaContainerName);
+  const authContainer = docker.getContainer(authContainerName);
 
   if (action === "pause") {
+    try { await authContainer.stop({ t: 2 }); } catch {}
     try { await metaContainer.stop({ t: 2 }); } catch {}
     try { await restContainer.stop({ t: 2 }); } catch {}
     try { await dbContainer.stop({ t: 5 }); } catch {}
@@ -143,6 +178,7 @@ export async function toggleTenantStatus(slug: string, action: "pause" | "resume
       await new Promise((resolve) => setTimeout(resolve, 2000));
       await restContainer.start();
       await metaContainer.start();
+      await authContainer.start();
     } catch (err: any) {
       throw new Error(`Failed to resume pod for ${slug}: ${err.message}`);
     }
@@ -156,8 +192,16 @@ export async function deleteTenantPod(slug: string, removeVolume = true) {
   const dbContainerName = `project_${slug}_db`;
   const restContainerName = `project_${slug}_rest`;
   const metaContainerName = `project_${slug}_meta`;
+  const authContainerName = `project_${slug}_auth`;
   const networkName = `project_${slug}_net`;
   const volumeName = `project_${slug}_db_data`;
+
+  // Stop & Remove Auth Container
+  try {
+    const authContainer = docker.getContainer(authContainerName);
+    await authContainer.stop({ t: 2 }).catch(() => {});
+    await authContainer.remove({ force: true });
+  } catch {}
 
   // Stop & Remove Meta Container
   try {
@@ -226,6 +270,16 @@ export async function getTenantMetrics(slug: string): Promise<TenantPodStatus> {
 
     if (restRunning) {
       const stats = await restContainer.stats({ stream: false });
+      memoryUsageMb += (stats.memory_stats.usage || 0) / (1024 * 1024);
+      cpuPercentage += calculateCpuPercent(stats);
+    }
+  } catch {}
+
+  try {
+    const authContainer = docker.getContainer(`project_${slug}_auth`);
+    const authInspect = await authContainer.inspect();
+    if (authInspect.State.Running) {
+      const stats = await authContainer.stats({ stream: false });
       memoryUsageMb += (stats.memory_stats.usage || 0) / (1024 * 1024);
       cpuPercentage += calculateCpuPercent(stats);
     }

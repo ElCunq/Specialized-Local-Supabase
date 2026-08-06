@@ -4,10 +4,11 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Tenant } from "@/db/schema";
 import { StudioHeader } from "@/components/studio/StudioHeader";
-import { StudioSidebar, StudioTab } from "@/components/studio/StudioSidebar";
+import { StudioSidebar, StudioModule, StudioSubMenu } from "@/components/studio/StudioSidebar";
 import { StudioOverview } from "@/components/studio/StudioOverview";
 import { StudioTableEditor } from "@/components/studio/StudioTableEditor";
 import { StudioSqlEditor } from "@/components/studio/StudioSqlEditor";
+import { StudioDatabase } from "@/components/studio/StudioDatabase";
 import { StudioAuth } from "@/components/studio/StudioAuth";
 import { StudioSettings } from "@/components/studio/StudioSettings";
 import { StudioStorage } from "@/components/studio/StudioStorage";
@@ -24,7 +25,8 @@ export default function ProjectStudioPage() {
   const [project, setProject] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<StudioTab>("overview");
+  const [activeModule, setActiveModule] = useState<StudioModule>("overview");
+  const [activeSubMenu, setActiveSubMenu] = useState<StudioSubMenu>("");
 
   const fetchProject = useCallback(async () => {
     try {
@@ -47,45 +49,74 @@ export default function ProjectStudioPage() {
 
   useEffect(() => {
     fetchProject();
-    if (typeof window !== "undefined" && slug) {
-      document.cookie = `active_project_slug=${slug}; path=/; max-age=86400`;
-    }
-  }, [fetchProject, slug]);
+  }, [fetchProject]);
+
+  // Set default submenu when module changes
+  useEffect(() => {
+    if (activeModule === "database") setActiveSubMenu("tables");
+    else if (activeModule === "auth") setActiveSubMenu("users");
+    else if (activeModule === "settings") setActiveSubMenu("general");
+    else setActiveSubMenu("");
+  }, [activeModule]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#121212] flex items-center justify-center text-slate-400 gap-3 font-mono text-xs">
-        <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
-        <span>Loading Official Supabase Studio for /{slug}...</span>
+      <div className="min-h-screen bg-[#1c1c1c] flex items-center justify-center text-[#8b8b8b] gap-3 font-sans text-sm">
+        <Loader2 className="w-5 h-5 animate-spin text-brand" />
+        <span>Loading Studio for /{slug}...</span>
       </div>
     );
   }
 
   if (error || !project) {
     return (
-      <div className="min-h-screen bg-[#121212] flex items-center justify-center p-6">
-        <div className="p-6 rounded-2xl bg-[#171717] border border-[#282828] text-center max-w-md space-y-3">
+      <div className="min-h-screen bg-[#1c1c1c] flex items-center justify-center p-6">
+        <div className="p-6 rounded-2xl bg-[#242424] border border-[#2e2e2e] text-center max-w-md space-y-3">
           <AlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
-          <h3 className="text-base font-bold text-white">Project Not Found</h3>
-          <p className="text-xs text-slate-400">{error || "Requested project instance does not exist."}</p>
+          <h3 className="text-base font-medium text-[#ededed]">Project Not Found</h3>
+          <p className="text-sm text-[#8b8b8b]">{error || "Requested project instance does not exist."}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-[#121212] flex flex-col overflow-hidden select-text">
-      {/* Control Plane Top Header */}
+    <div className="h-screen bg-[#1c1c1c] flex flex-col overflow-hidden select-text font-sans">
+      {/* Top Header */}
       <StudioHeader project={project} />
 
-      {/* Real Official Supabase Studio Embedded Frame */}
-      <div className="flex-1 w-full h-full relative bg-[#171717]">
-        <iframe
-          src={`http://localhost:8083/project/default`}
-          className="w-full h-full border-none"
-          title={`Supabase Studio - ${project.name}`}
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Dual Sidebar */}
+        <StudioSidebar
+          activeModule={activeModule}
+          activeSubMenu={activeSubMenu}
+          onModuleChange={(m) => setActiveModule(m)}
+          onSubMenuChange={(s) => setActiveSubMenu(s)}
+          slug={slug}
         />
+
+        {/* Dynamic Studio View Content */}
+        <main className="flex-1 overflow-y-auto bg-[#1c1c1c]">
+          {activeModule === "overview" && (
+            <StudioOverview project={project} onTabChange={(t) => setActiveModule(t as StudioModule)} />
+          )}
+
+          {activeModule === "editor" && <StudioTableEditor project={project} />}
+
+          {activeModule === "sql" && <StudioSqlEditor project={project} />}
+
+          {activeModule === "database" && <StudioDatabase project={project} activeSubMenu={activeSubMenu} />}
+
+          {activeModule === "auth" && <StudioAuth project={project} activeSubMenu={activeSubMenu} />}
+
+          {activeModule === "storage" && <StudioStorage project={project} />}
+
+          {activeModule === "docs" && <StudioApiDocs project={project} />}
+
+          {activeModule === "settings" && <StudioSettings project={project} activeSubMenu={activeSubMenu} />}
+        </main>
       </div>
     </div>
   );
-};
+}

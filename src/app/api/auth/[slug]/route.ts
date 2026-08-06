@@ -16,7 +16,13 @@ async function executeSqlInTenantDb(slug: string, sql: string): Promise<string> 
       if (err) return reject(err);
       let output = "";
       stream?.on("data", (chunk) => (output += chunk.toString("utf8")));
-      stream?.on("end", () => resolve(output));
+      stream?.on("end", () => {
+        if (output.includes("ERROR:")) {
+          reject(new Error(output.trim()));
+        } else {
+          resolve(output);
+        }
+      });
     });
   });
 }

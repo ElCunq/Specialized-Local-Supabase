@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   Home,
@@ -15,92 +15,163 @@ import {
   BookOpen,
   Activity,
   Layers,
+  ChevronRight,
 } from "lucide-react";
 
-export type StudioTab =
+export type StudioModule =
   | "overview"
   | "editor"
   | "sql"
   | "database"
   | "auth"
   | "storage"
-  | "webhooks"
   | "docs"
-  | "metrics"
   | "settings";
 
+export type StudioSubMenu = string;
+
 interface StudioSidebarProps {
-  activeTab: StudioTab;
-  onTabChange: (tab: StudioTab) => void;
+  activeModule: StudioModule;
+  activeSubMenu: StudioSubMenu;
+  onModuleChange: (mod: StudioModule) => void;
+  onSubMenuChange: (sub: StudioSubMenu) => void;
   slug: string;
 }
 
 export const StudioSidebar: React.FC<StudioSidebarProps> = ({
-  activeTab,
-  onTabChange,
+  activeModule,
+  activeSubMenu,
+  onModuleChange,
+  onSubMenuChange,
   slug,
 }) => {
-  const navItems: { id: StudioTab; label: string; icon: React.ReactNode }[] = [
-    { id: "overview", label: "Project Overview", icon: <Home className="w-4 h-4" /> },
-    { id: "editor", label: "Table Editor", icon: <Table className="w-4 h-4" /> },
-    { id: "sql", label: "SQL Editor", icon: <Terminal className="w-4 h-4" /> },
-    { id: "database", label: "Schema Diagrams", icon: <Layers className="w-4 h-4" /> },
-    { id: "auth", label: "Authentication", icon: <Users className="w-4 h-4" /> },
-    { id: "storage", label: "Storage", icon: <HardDrive className="w-4 h-4" /> },
-    { id: "webhooks", label: "Webhooks & AI Vector", icon: <Webhook className="w-4 h-4" /> },
-    { id: "docs", label: "API Docs & SDKs", icon: <BookOpen className="w-4 h-4" /> },
-    { id: "metrics", label: "Live Metrics", icon: <Activity className="w-4 h-4" /> },
-    { id: "settings", label: "Project Settings", icon: <Settings className="w-4 h-4" /> },
+  const primaryNavItems: { id: StudioModule; label: string; icon: React.ReactNode }[] = [
+    { id: "overview", label: "Home", icon: <Home className="w-5 h-5" /> },
+    { id: "editor", label: "Table Editor", icon: <Table className="w-5 h-5" /> },
+    { id: "sql", label: "SQL Editor", icon: <Terminal className="w-5 h-5" /> },
+    { id: "database", label: "Database", icon: <Database className="w-5 h-5" /> },
+    { id: "auth", label: "Authentication", icon: <Users className="w-5 h-5" /> },
+    { id: "storage", label: "Storage", icon: <HardDrive className="w-5 h-5" /> },
+    { id: "docs", label: "API Docs", icon: <BookOpen className="w-5 h-5" /> },
+    { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
   ];
 
+  const getSubMenuTitle = (mod: StudioModule) => {
+    switch (mod) {
+      case "database":
+        return "Database";
+      case "auth":
+        return "Authentication";
+      case "settings":
+        return "Settings";
+      default:
+        return null;
+    }
+  };
+
+  const getSubMenus = (mod: StudioModule): { id: string; label: string }[] => {
+    switch (mod) {
+      case "database":
+        return [
+          { id: "tables", label: "Tables" },
+          { id: "roles", label: "Roles" },
+          { id: "policies", label: "Policies" },
+          { id: "extensions", label: "Extensions" },
+        ];
+      case "auth":
+        return [
+          { id: "users", label: "Users" },
+          { id: "policies", label: "Policies" },
+          { id: "providers", label: "Providers" },
+        ];
+      case "settings":
+        return [
+          { id: "general", label: "General" },
+          { id: "database", label: "Database" },
+          { id: "api", label: "API" },
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const subMenus = getSubMenus(activeModule);
+  const subMenuTitle = getSubMenuTitle(activeModule);
+
   return (
-    <aside className="w-14 md:w-56 bg-[#171717] border-r border-[#282828] flex flex-col justify-between select-none">
-      {/* Top Logo & Navigation */}
-      <div>
-        {/* Supabase Emerald Logo */}
-        <div className="h-14 border-b border-[#282828] px-4 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#121212] border border-[#282828] p-1 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <img src="/icon.svg" alt="SupaBase Logo" className="w-full h-full" />
-          </div>
-          <span className="hidden md:inline font-bold text-sm text-white tracking-tight">
-            Supabase Studio
-          </span>
+    <div className="flex h-full bg-[#1c1c1c] border-r border-[#2e2e2e]">
+      {/* Primary Sidebar (Narrow) */}
+      <aside className="w-14 bg-[#1c1c1c] border-r border-[#2e2e2e] flex flex-col items-center py-4 justify-between z-10">
+        <div className="flex flex-col gap-4 items-center w-full">
+          {/* Logo */}
+          <Link href={`/project/${slug}`} className="mb-2">
+            <div className="w-8 h-8 rounded-full bg-[#242424] border border-[#3e3e3e] flex items-center justify-center shadow-lg shadow-emerald-500/10">
+              <img src="/icon.svg" alt="Logo" className="w-5 h-5 opacity-80 hover:opacity-100 transition-opacity" />
+            </div>
+          </Link>
+
+          {/* Icons */}
+          <nav className="flex flex-col gap-2 w-full px-2">
+            {primaryNavItems.map((item) => {
+              const isActive = activeModule === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onModuleChange(item.id)}
+                  title={item.label}
+                  className={`w-10 h-10 rounded-md flex items-center justify-center transition-all ${
+                    isActive
+                      ? "bg-emerald-500/10 text-emerald-500"
+                      : "text-[#8b8b8b] hover:text-white hover:bg-[#2e2e2e]"
+                  }`}
+                >
+                  {item.icon}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Links */}
-        <nav className="p-2 space-y-1">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => onTabChange(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                  isActive
-                    ? "bg-[#242424] text-emerald-400 border border-[#333]"
-                    : "text-slate-400 hover:text-white hover:bg-[#1f1f1f]"
-                }`}
-              >
-                <span className={isActive ? "text-emerald-400" : "text-slate-400"}>
-                  {item.icon}
-                </span>
-                <span className="hidden md:inline truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+        {/* Bottom Back Button */}
+        <div className="pb-2 w-full flex justify-center">
+          <Link
+            href="/"
+            title="All Projects"
+            className="w-10 h-10 rounded-md flex items-center justify-center text-[#8b8b8b] hover:text-white hover:bg-[#2e2e2e] transition"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+        </div>
+      </aside>
 
-      {/* Bottom Back Button to Control Plane */}
-      <div className="p-3 border-t border-[#282828]">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-[#242424] transition"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="hidden md:inline">Tüm Projeler</span>
-        </Link>
-      </div>
-    </aside>
+      {/* Secondary Sidebar */}
+      {subMenus.length > 0 && (
+        <aside className="w-56 bg-[#1c1c1c] flex flex-col">
+          <div className="h-14 flex items-center px-5 font-semibold text-sm text-[#ededed]">
+            {subMenuTitle}
+          </div>
+          <div className="px-3 py-2 flex-1">
+            <nav className="flex flex-col gap-1">
+              {subMenus.map((item) => {
+                const isActive = activeSubMenu === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onSubMenuChange(item.id)}
+                    className={`flex items-center text-sm px-3 py-1.5 rounded-md transition-all text-left ${
+                      isActive
+                        ? "bg-[#2e2e2e] text-white font-medium"
+                        : "text-[#a1a1aa] hover:bg-[#242424] hover:text-[#ededed]"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+      )}
+    </div>
   );
 };

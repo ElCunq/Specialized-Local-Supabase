@@ -10,19 +10,20 @@ import {
   Eye,
   EyeOff,
   Download,
-  Mail,
-  Save,
-  Loader2,
-  HardDrive,
   FileCode,
-  Lock,
+  HardDrive,
+  Settings2,
+  Globe,
+  Trash2
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface StudioSettingsProps {
   project: Tenant;
+  activeSubMenu: string;
 }
 
-export const StudioSettings: React.FC<StudioSettingsProps> = ({ project }) => {
+export const StudioSettings: React.FC<StudioSettingsProps> = ({ project, activeSubMenu }) => {
   const [copiedAnon, setCopiedAnon] = useState(false);
   const [copiedService, setCopiedService] = useState(false);
   const [copiedDbPassword, setCopiedDbPassword] = useState(false);
@@ -30,15 +31,7 @@ export const StudioSettings: React.FC<StudioSettingsProps> = ({ project }) => {
   const [copiedConnString, setCopiedConnString] = useState(false);
   const [copiedEnv, setCopiedEnv] = useState(false);
   const [showSecrets, setShowSecrets] = useState(false);
-
-  // SMTP Settings State
-  const [smtpHost, setSmtpHost] = useState("smtp.resend.com");
-  const [smtpPort, setSmtpPort] = useState("587");
-  const [smtpUser, setSmtpUser] = useState("resend");
-  const [smtpPass, setSmtpPass] = useState("");
-  const [fromEmail, setFromEmail] = useState(`noreply@${project.slug}.com`);
-  const [savingSmtp, setSavingSmtp] = useState(false);
-  const [smtpSaved, setSmtpSaved] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
 
   const copyText = (text: string, setter: (v: boolean) => void) => {
     navigator.clipboard.writeText(text);
@@ -48,6 +41,7 @@ export const StudioSettings: React.FC<StudioSettingsProps> = ({ project }) => {
 
   const domain = typeof window !== "undefined" ? window.location.host : "db.orfa.dev";
   const postgresConnString = `postgres://postgres:${project.dbPassword}@${domain}:5432/postgres`;
+  const apiUrl = `https://${domain}/p/${project.slug}`;
 
   const fullEnvTemplate = `PORT=3000
 NODE_ENV=production
@@ -67,224 +61,234 @@ JWT_REFRESH_SECRET=${project.serviceKey}
 JWT_REFRESH_EXPIRES_IN=7d
 
 # Project REST & GraphQL API Endpoints
-NEXT_PUBLIC_SUPABASE_URL=https://${domain}/p/${project.slug}
+NEXT_PUBLIC_SUPABASE_URL=${apiUrl}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${project.anonKey}
 SUPABASE_SERVICE_ROLE_KEY=${project.serviceKey}
-
-# Domain Configuration
-SYSTEM_DOMAIN=${domain}
 `;
 
   const handleDownloadBackup = () => {
     window.open(`/api/backup/${project.slug}`, "_blank");
   };
 
-  const handleSaveSmtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingSmtp(true);
-    setTimeout(() => {
-      setSavingSmtp(false);
-      setSmtpSaved(true);
-      setTimeout(() => setSmtpSaved(false), 3000);
-    }, 800);
-  };
-
   return (
-    <div className="p-6 md:p-8 space-y-8 bg-[#121212] min-h-full text-slate-200 select-text">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Proje Ayarları & Yapılandırma</h2>
-          <p className="text-xs text-slate-400">Database passwords, JWT secrets, connection strings, .env generator & backup tools for /{project.slug}.</p>
-        </div>
-
-        <button
-          onClick={() => setShowSecrets(!showSecrets)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#171717] border border-[#282828] text-xs text-slate-300 hover:text-white transition cursor-pointer"
-        >
-          {showSecrets ? <EyeOff className="w-4 h-4 text-amber-400" /> : <Eye className="w-4 h-4 text-emerald-400" />}
-          {showSecrets ? "Gizli Anahtarları Gizle" : "Gizli Anahtarları Göster (Reveal Secrets)"}
-        </button>
-      </div>
-
-      {/* Ready-to-copy .env Generator */}
-      <div className="rounded-xl bg-[#171717] border border-emerald-500/30 p-6 space-y-4 shadow-lg shadow-emerald-500/5">
-        <div className="flex items-center justify-between border-b border-[#282828] pb-4">
-          <div className="flex items-center gap-2">
-            <FileCode className="w-5 h-5 text-emerald-400" />
+    <div className="flex h-full bg-[#1c1c1c] text-[#ededed] font-sans select-none overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#1c1c1c] overflow-y-auto">
+        <div className="p-8 w-full max-w-4xl mx-auto space-y-10">
+          
+          <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-white">Tek Tıkla Hazır `.env` Dosyası Oluşturucu</h3>
-              <p className="text-[10px] text-slate-400">Projeniz için doldurulmuş tüm bağlantı değişkenlerini tek tıkla kopyalayın.</p>
+              <h2 className="text-2xl font-medium text-[#ededed] mb-1 tracking-tight capitalize">
+                {activeSubMenu === "general" && "General Settings"}
+                {activeSubMenu === "database" && "Database Settings"}
+                {activeSubMenu === "api" && "API Settings"}
+              </h2>
+              <p className="text-sm text-[#8b8b8b]">Manage settings for project /{project.slug}</p>
             </div>
+            
+            {(activeSubMenu === "database" || activeSubMenu === "api") && (
+              <button
+                onClick={() => setShowSecrets(!showSecrets)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#242424] border border-[#3e3e3e] text-xs text-[#8b8b8b] hover:text-[#ededed] transition"
+              >
+                {showSecrets ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showSecrets ? "Hide secrets" : "Reveal secrets"}
+              </button>
+            )}
           </div>
 
-          <button
-            onClick={() => copyText(fullEnvTemplate, setCopiedEnv)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
-          >
-            {copiedEnv ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            {copiedEnv ? "Tüm .env Kopyalandı!" : ".env Kopyala"}
-          </button>
-        </div>
+          {activeSubMenu === "general" && (
+            <div className="space-y-8">
+              <div className="border border-[#2e2e2e] rounded-md bg-[#1c1c1c] overflow-hidden">
+                <div className="p-5 border-b border-[#2e2e2e]">
+                  <h3 className="text-sm font-medium text-[#ededed]">Project Configuration</h3>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="block text-sm text-[#8b8b8b]">Project Name</label>
+                    <input type="text" disabled defaultValue={project.name} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] opacity-70" />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="block text-sm text-[#8b8b8b]">Reference ID</label>
+                    <div className="flex items-center gap-2">
+                      <input type="text" disabled defaultValue={project.slug} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <button onClick={() => copyText(project.slug, setCopiedRef)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
+                        {copiedRef ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-        <div className="p-4 rounded-xl bg-[#121212] border border-[#282828] font-mono text-xs text-emerald-300 overflow-x-auto">
-          <pre>{showSecrets ? fullEnvTemplate : fullEnvTemplate.replace(/DB_PASSWORD=.*/, "DB_PASSWORD=••••••••••••").replace(/JWT_SECRET=.*/, "JWT_SECRET=••••••••••••")}</pre>
-        </div>
-      </div>
-
-      {/* Database Credentials & Password */}
-      <div className="rounded-xl bg-[#171717] border border-[#282828] p-6 space-y-6">
-        <div className="flex items-center gap-2 border-b border-[#282828] pb-4">
-          <Database className="w-5 h-5 text-blue-400" />
-          <div>
-            <h3 className="text-sm font-bold text-white">PostgreSQL Veritabanı Bilgileri (Database Credentials)</h3>
-            <p className="text-[10px] text-slate-400">PostgreSQL host, port, user and container database password.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-          <div className="p-3 rounded-xl bg-[#121212] border border-[#282828]">
-            <span className="text-slate-500 block text-[10px] uppercase">DB Host</span>
-            <span className="text-white font-semibold">{domain}</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-[#121212] border border-[#282828]">
-            <span className="text-slate-500 block text-[10px] uppercase">DB Port</span>
-            <span className="text-white font-semibold">5432</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-[#121212] border border-[#282828]">
-            <span className="text-slate-500 block text-[10px] uppercase">DB User</span>
-            <span className="text-white font-semibold">postgres</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-[#121212] border border-[#282828]">
-            <span className="text-slate-500 block text-[10px] uppercase">DB Name</span>
-            <span className="text-white font-semibold">postgres</span>
-          </div>
-        </div>
-
-        {/* DB Password */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-emerald-400">Veritabanı Şifresi (DB Password)</span>
-            <span className="text-slate-500 text-[10px]">PostgreSQL Admin Pass</span>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
-            <span className="flex-1 truncate text-slate-300">
-              {showSecrets ? project.dbPassword : "••••••••••••••••••••••••••••••••"}
-            </span>
-            <button
-              onClick={() => copyText(project.dbPassword || "", setCopiedDbPassword)}
-              className="p-1.5 rounded text-slate-400 hover:text-white cursor-pointer"
-            >
-              {copiedDbPassword ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* PostgreSQL Connection String */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-purple-400">PostgreSQL Connection String</span>
-            <span className="text-slate-500 text-[10px]">URI Format</span>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
-            <span className="flex-1 truncate text-slate-300">
-              {showSecrets ? postgresConnString : `postgres://postgres:••••••••@${domain}:5432/postgres`}
-            </span>
-            <button
-              onClick={() => copyText(postgresConnString, setCopiedConnString)}
-              className="p-1.5 rounded text-slate-400 hover:text-white cursor-pointer"
-            >
-              {copiedConnString ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* JWT & API Keys Panel */}
-      <div className="rounded-xl bg-[#171717] border border-[#282828] p-6 space-y-6">
-        <div className="flex items-center gap-2 border-b border-[#282828] pb-4">
-          <Key className="w-5 h-5 text-amber-400" />
-          <h3 className="text-sm font-bold text-white">JWT Secrets & Project API Keys</h3>
-        </div>
-
-        {/* JWT Secret */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-amber-400">JWT Secret (JWT_SECRET)</span>
-            <span className="text-slate-500 text-[10px]">GoTrue & PostgREST HMAC Secret</span>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
-            <span className="flex-1 truncate text-slate-300">
-              {showSecrets ? project.jwtSecret : "••••••••••••••••••••••••••••••••••••••••"}
-            </span>
-            <button
-              onClick={() => copyText(project.jwtSecret || "", setCopiedJwtSecret)}
-              className="p-1.5 rounded text-slate-400 hover:text-white cursor-pointer"
-            >
-              {copiedJwtSecret ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Anon Key */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-white">anon (public key)</span>
-            <span className="text-slate-500 text-[10px]">Client-side Safe</span>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
-            <span className="flex-1 truncate text-slate-300">
-              {showSecrets ? project.anonKey : "••••••••••••••••••••••••••••••••••••••••"}
-            </span>
-            <button
-              onClick={() => copyText(project.anonKey || "", setCopiedAnon)}
-              className="p-1.5 rounded text-slate-400 hover:text-white cursor-pointer"
-            >
-              {copiedAnon ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Service Role Key */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-rose-400">service_role (secret key)</span>
-            <span className="text-rose-500/80 text-[10px]">Bypasses RLS - Keep Private!</span>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-[#121212] border border-[#282828] text-xs font-mono">
-            <span className="flex-1 truncate text-slate-300">
-              {showSecrets ? project.serviceKey : "••••••••••••••••••••••••••••••••••••••••"}
-            </span>
-            <button
-              onClick={() => copyText(project.serviceKey || "", setCopiedService)}
-              className="p-1.5 rounded text-slate-400 hover:text-white cursor-pointer"
-            >
-              {copiedService ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Database Backup Panel */}
-      <div className="rounded-xl bg-[#171717] border border-[#282828] p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[#282828] pb-4">
-          <div className="flex items-center gap-2">
-            <HardDrive className="w-5 h-5 text-emerald-400" />
-            <div>
-              <h3 className="text-sm font-bold text-white">Tek Tıkla Veri Tabanı Yedeği & Geri Yükleme</h3>
-              <p className="text-[10px] text-slate-400">PostgreSQL `.sql` dump export engine.</p>
+              <div className="border border-rose-500/30 rounded-md bg-rose-500/5 overflow-hidden">
+                <div className="p-5 border-b border-rose-500/20">
+                  <h3 className="text-sm font-medium text-rose-500">Danger Zone</h3>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-[#ededed] font-medium text-sm">Pause Project</h4>
+                      <p className="text-xs text-[#8b8b8b] mt-0.5">Pausing will turn off your compute and API endpoints.</p>
+                    </div>
+                    <Button variant="outline" className="text-[#8b8b8b] border-[#3e3e3e]">Pause Project</Button>
+                  </div>
+                  <div className="border-t border-rose-500/20 pt-4 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-[#ededed] font-medium text-sm">Delete Project</h4>
+                      <p className="text-xs text-[#8b8b8b] mt-0.5">This action cannot be undone.</p>
+                    </div>
+                    <Button variant="destructive" className="bg-rose-600 hover:bg-rose-500">Delete Project</Button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
-          <button
-            onClick={handleDownloadBackup}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition shadow-lg shadow-emerald-500/20 cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            Yedek İndir (.sql)
-          </button>
+          {activeSubMenu === "database" && (
+            <div className="space-y-8">
+              <div className="border border-[#2e2e2e] rounded-md bg-[#1c1c1c] overflow-hidden">
+                <div className="p-5 border-b border-[#2e2e2e] flex items-center gap-2">
+                  <Database className="w-4 h-4 text-brand" />
+                  <h3 className="text-sm font-medium text-[#ededed]">Connection Info</h3>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">Host</label>
+                      <input type="text" disabled defaultValue={domain} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">Database Name</label>
+                      <input type="text" disabled defaultValue="postgres" className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">Port</label>
+                      <input type="text" disabled defaultValue="5432" className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">User</label>
+                      <input type="text" disabled defaultValue="postgres" className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">Password</label>
+                    <div className="flex items-center gap-2">
+                      <input type="text" disabled value={showSecrets ? project.dbPassword : "••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <button onClick={() => copyText(project.dbPassword || "", setCopiedDbPassword)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
+                        {copiedDbPassword ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">Connection String</label>
+                    <div className="flex items-center gap-2">
+                      <input type="text" disabled value={showSecrets ? postgresConnString : `postgres://postgres:••••••••@${domain}:5432/postgres`} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <button onClick={() => copyText(postgresConnString, setCopiedConnString)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
+                        {copiedConnString ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-[#2e2e2e] rounded-md bg-[#1c1c1c] overflow-hidden">
+                <div className="p-5 border-b border-[#2e2e2e] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="w-4 h-4 text-brand" />
+                    <h3 className="text-sm font-medium text-[#ededed]">Database Backup</h3>
+                  </div>
+                  <Button variant="emerald" size="sm" onClick={handleDownloadBackup}>
+                    <Download className="w-4 h-4 mr-2" /> Download Backup (.sql)
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeSubMenu === "api" && (
+            <div className="space-y-8">
+              <div className="border border-[#2e2e2e] rounded-md bg-[#1c1c1c] overflow-hidden">
+                <div className="p-5 border-b border-[#2e2e2e] flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-brand" />
+                  <h3 className="text-sm font-medium text-[#ededed]">API Settings</h3>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">Project URL</label>
+                    <div className="flex items-center gap-2">
+                      <input type="text" disabled value={apiUrl} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">JWT Secret</label>
+                    <div className="flex items-center gap-2">
+                      <input type="text" disabled value={showSecrets ? project.jwtSecret : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <button onClick={() => copyText(project.jwtSecret || "", setCopiedJwtSecret)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
+                        {copiedJwtSecret ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-[#2e2e2e] rounded-md bg-[#1c1c1c] overflow-hidden">
+                <div className="p-5 border-b border-[#2e2e2e] flex items-center gap-2">
+                  <Key className="w-4 h-4 text-brand" />
+                  <h3 className="text-sm font-medium text-[#ededed]">Project API Keys</h3>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="block text-sm font-medium text-[#ededed]">anon</label>
+                      <Badge variant="outline" className="text-xs bg-[#242424] text-brand border-[#3e3e3e]">public</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input type="text" disabled value={showSecrets ? project.anonKey : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <button onClick={() => copyText(project.anonKey || "", setCopiedAnon)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
+                        {copiedAnon ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-4 border-t border-[#2e2e2e]">
+                    <div className="flex items-center gap-2">
+                      <label className="block text-sm font-medium text-[#ededed]">service_role</label>
+                      <Badge variant="outline" className="text-xs bg-rose-500/10 text-rose-400 border-rose-500/20">secret</Badge>
+                    </div>
+                    <p className="text-xs text-[#8b8b8b]">This key has the ability to bypass Row Level Security. Never share it publicly.</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <input type="text" disabled value={showSecrets ? project.serviceKey : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <button onClick={() => copyText(project.serviceKey || "", setCopiedService)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
+                        {copiedService ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="border border-brand/30 rounded-md bg-[#1c1c1c] overflow-hidden">
+                <div className="p-5 border-b border-[#2e2e2e] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileCode className="w-4 h-4 text-brand" />
+                    <div>
+                      <h3 className="text-sm font-medium text-[#ededed]">Environment Variables</h3>
+                      <p className="text-xs text-[#8b8b8b]">Ready-to-copy .env template.</p>
+                    </div>
+                  </div>
+                  <Button variant="emerald" size="sm" onClick={() => copyText(fullEnvTemplate, setCopiedEnv)}>
+                    {copiedEnv ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                    Copy .env
+                  </Button>
+                </div>
+                <div className="p-4 bg-[#242424] overflow-x-auto text-brand text-xs font-mono">
+                  <pre>{showSecrets ? fullEnvTemplate : fullEnvTemplate.replace(/DB_PASSWORD=.*/, "DB_PASSWORD=••••••••").replace(/JWT_SECRET=.*/, "JWT_SECRET=••••••••")}</pre>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
