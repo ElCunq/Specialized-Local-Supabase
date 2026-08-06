@@ -17,6 +17,9 @@ import {
   Loader2,
   Server,
 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface ProjectCardProps {
   project: Tenant;
@@ -31,11 +34,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 }) => {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedAnon, setCopiedAnon] = useState(false);
-  const [copiedService, setCopiedService] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const apiUrl = `https://db.orfa.dev/p/${project.slug}`;
+  const domain = typeof window !== "undefined" ? window.location.host : "db.orfa.dev";
+  const protocol = typeof window !== "undefined" ? window.location.protocol : "https:";
+  const apiUrl = `${protocol}//${domain}/p/${project.slug}`;
 
   const copyToClipboard = (text: string, setter: (val: boolean) => void) => {
     navigator.clipboard.writeText(text);
@@ -86,27 +90,26 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   };
 
   return (
-    <div className="glass-card rounded-2xl p-6 hover:border-slate-700/80 transition-all duration-300 flex flex-col justify-between group hover:shadow-glow">
+    <Card className="flex flex-col justify-between group hover:border-[#3ecf8e]/40 hover:shadow-lg hover:shadow-emerald-500/5 transition-all">
       <div>
-        {/* Top bar: Name, Badge & Quick Controls */}
-        <div className="flex items-start justify-between mb-5">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 group-hover:scale-105 transition-transform">
+            <div className="p-2.5 rounded-lg bg-[#09090b] border border-[#27272a] text-[#3ecf8e]">
               <Server className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
-                  {project.name}
-                </h3>
+                <CardTitle>{project.name}</CardTitle>
                 <StatusBadge status={project.status} />
               </div>
-              <p className="text-xs text-slate-400 font-mono mt-0.5">/{project.slug}</p>
+              <CardDescription className="font-mono mt-0.5">/{project.slug}</CardDescription>
             </div>
           </div>
 
           <div className="flex items-center gap-1">
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleToggleStatus}
               disabled={actionLoading}
               title={
@@ -114,98 +117,64 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                   ? "Pod'u Duraklat (Scale to Zero)"
                   : "Pod'u Başlat"
               }
-              className="p-2 rounded-xl text-slate-400 hover:text-amber-400 hover:bg-slate-800/80 transition active:scale-95 disabled:opacity-50"
             >
               {actionLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
               ) : project.status === "active" ? (
-                <PauseCircle className="w-4 h-4" />
+                <PauseCircle className="w-4 h-4 text-amber-400" />
               ) : (
-                <PlayCircle className="w-4 h-4 text-emerald-400" />
+                <PlayCircle className="w-4 h-4 text-[#3ecf8e]" />
               )}
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleDelete}
               disabled={actionLoading}
               title="Projeyi Sil"
-              className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 transition active:scale-95 disabled:opacity-50"
             >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-400" />
+            </Button>
           </div>
-        </div>
+        </CardHeader>
 
-        {/* Resource Usage Stats Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-2.5">
-            <HardDrive className="w-4 h-4 text-blue-400" />
-            <div>
-              <div className="text-[10px] text-slate-400 uppercase font-semibold">RAM Kullanımı</div>
-              <div className="text-xs font-mono text-white font-bold">
-                {project.status === "active" ? "~24.5 MB" : "0 MB (Duraklatıldı)"}
+        <CardContent className="space-y-4">
+          {/* Resource Usage Stats Cards */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="p-2.5 rounded-lg bg-[#09090b] border border-[#27272a] flex items-center gap-2.5">
+              <HardDrive className="w-3.5 h-3.5 text-blue-400" />
+              <div>
+                <div className="text-[10px] text-slate-400 uppercase font-semibold">RAM Kullanımı</div>
+                <div className="text-xs font-mono text-white font-bold">
+                  {project.status === "active" ? "~35.2 MB" : "0 MB (Pasif)"}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-[#09090b] border border-[#27272a] flex items-center gap-2.5">
+              <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+              <div>
+                <div className="text-[10px] text-slate-400 uppercase font-semibold">CPU Yükü</div>
+                <div className="text-xs font-mono text-white font-bold">
+                  {project.status === "active" ? "~0.1 %" : "0 %"}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-2.5">
-            <Cpu className="w-4 h-4 text-emerald-400" />
-            <div>
-              <div className="text-[10px] text-slate-400 uppercase font-semibold">CPU Yükü</div>
-              <div className="text-xs font-mono text-white font-bold">
-                {project.status === "active" ? "~0.2 %" : "0 %"}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* PostgREST Gateway URL */}
-        <div className="mb-4">
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-            PostgREST Gateway URL
-          </label>
-          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono text-slate-300">
-            <span className="truncate flex-1 text-blue-300">{apiUrl}</span>
-            <button
-              onClick={() => copyToClipboard(apiUrl, setCopiedUrl)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-              title="URL Kopyala"
-            >
-              {copiedUrl ? (
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* API Key Reveal & Copy */}
-        {project.anonKey && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-amber-400" />
-                Anon API Key (JWT)
-              </label>
+          {/* PostgREST Gateway URL */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              PostgREST Gateway URL
+            </label>
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-[#09090b] border border-[#27272a] text-xs font-mono">
+              <span className="truncate flex-1 text-[#3ecf8e]">{apiUrl}</span>
               <button
-                onClick={() => setShowKeys(!showKeys)}
-                className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 transition"
+                onClick={() => copyToClipboard(apiUrl, setCopiedUrl)}
+                className="p-1 rounded text-slate-400 hover:text-white transition cursor-pointer"
               >
-                {showKeys ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                {showKeys ? "Gizle" : "Göster"}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono text-slate-400">
-              <span className="truncate flex-1 text-slate-300">
-                {showKeys ? project.anonKey : "••••••••••••••••••••••••••••••••••••••••"}
-              </span>
-              <button
-                onClick={() => copyToClipboard(project.anonKey!, setCopiedAnon)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                title="Key Kopyala"
-              >
-                {copiedAnon ? (
+                {copiedUrl ? (
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
@@ -213,55 +182,68 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Footer Quick Links */}
-      <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs mt-2">
-        <a
-          href={`/project/${project.slug}`}
-          className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 font-semibold transition bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          Open Supabase Studio
-        </a>
+          {/* API Key Reveal & Copy */}
+          {project.anonKey && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Key className="w-3 h-3 text-amber-400" />
+                  Anon API Key (JWT)
+                </label>
+                <button
+                  onClick={() => setShowKeys(!showKeys)}
+                  className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 transition cursor-pointer"
+                >
+                  {showKeys ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  {showKeys ? "Gizle" : "Göster"}
+                </button>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-[#09090b] border border-[#27272a] text-xs font-mono text-slate-400">
+                <span className="truncate flex-1 text-slate-300">
+                  {showKeys ? project.anonKey : "••••••••••••••••••••••••••••••••••••••••"}
+                </span>
+                <button
+                  onClick={() => copyToClipboard(project.anonKey!, setCopiedAnon)}
+                  className="p-1 rounded text-slate-400 hover:text-white transition cursor-pointer"
+                >
+                  {copiedAnon ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </CardContent>
 
-        <span className="text-[11px] text-slate-500 font-mono">
-          {project.id.slice(0, 12)}
-        </span>
+        <CardFooter className="flex items-center justify-between border-t border-[#27272a] pt-4">
+          <a href={`/project/${project.slug}`}>
+            <Button variant="emerald" size="sm">
+              <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+              Open Supabase Studio
+            </Button>
+          </a>
+
+          <span className="text-[10px] text-slate-500 font-mono">
+            {project.id.slice(0, 8)}
+          </span>
+        </CardFooter>
       </div>
-    </div>
+    </Card>
   );
 };
 
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
     case "active":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Aktif
-        </span>
-      );
+      return <Badge variant="success">Active</Badge>;
     case "paused":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-          Duraklatıldı
-        </span>
-      );
+      return <Badge variant="secondary">Paused</Badge>;
     case "provisioning":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-          <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
-          Kuruluyor...
-        </span>
-      );
+      return <Badge variant="outline">Starting...</Badge>;
     default:
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-          Hata
-        </span>
-      );
+      return <Badge variant="destructive">Error</Badge>;
   }
 }
