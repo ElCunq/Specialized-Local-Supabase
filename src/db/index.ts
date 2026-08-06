@@ -4,14 +4,25 @@ import * as schema from "./schema";
 import fs from "fs";
 import path from "path";
 
-const sqliteDbPath = process.env.DATABASE_URL || "file:master_control_plane.db";
+const sqliteDbPath = process.env.DATABASE_URL || "file:data/master_control_plane.db";
 
 // Ensure data directory exists if file path contains subdirectories
 if (sqliteDbPath.startsWith("file:")) {
   const filePath = sqliteDbPath.replace("file:", "");
   const dir = path.dirname(filePath);
+  
   if (dir && dir !== "." && !fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
+  }
+
+  // Auto-migrate old database if it exists in root
+  const oldPath = path.join(process.cwd(), "master_control_plane.db");
+  const newPath = path.join(process.cwd(), filePath);
+  
+  if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+    console.log(`[DB] Moving existing database from root to ${newPath}`);
+    fs.copyFileSync(oldPath, newPath);
+    // Don't delete old path immediately just in case, but new path takes precedence
   }
 }
 
