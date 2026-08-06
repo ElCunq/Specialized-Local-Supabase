@@ -26,6 +26,7 @@ export type StudioModule =
   | "auth"
   | "storage"
   | "docs"
+  | "logs"
   | "settings";
 
 export type StudioSubMenu = string;
@@ -53,6 +54,7 @@ export const StudioSidebar: React.FC<StudioSidebarProps> = ({
     { id: "auth", label: "Authentication", icon: <Users className="w-5 h-5" /> },
     { id: "storage", label: "Storage", icon: <HardDrive className="w-5 h-5" /> },
     { id: "docs", label: "API Docs", icon: <BookOpen className="w-5 h-5" /> },
+    { id: "logs", label: "Logs", icon: <Activity className="w-5 h-5" /> },
     { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
   ];
 

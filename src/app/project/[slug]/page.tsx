@@ -7,7 +7,7 @@ import { StudioHeader } from "@/components/studio/StudioHeader";
 import { StudioSidebar, StudioModule, StudioSubMenu } from "@/components/studio/StudioSidebar";
 import { StudioOverview } from "@/components/studio/StudioOverview";
 import { StudioTableEditor } from "@/components/studio/StudioTableEditor";
-import { StudioSqlEditor } from "@/components/studio/StudioSqlEditor";
+import StudioSQL from "@/components/studio/StudioSQL";
 import { StudioDatabase } from "@/components/studio/StudioDatabase";
 import { StudioAuth } from "@/components/studio/StudioAuth";
 import { StudioSettings } from "@/components/studio/StudioSettings";
@@ -16,6 +16,7 @@ import { StudioWebhooks } from "@/components/studio/StudioWebhooks";
 import { StudioApiDocs } from "@/components/studio/StudioApiDocs";
 import { StudioSchemaDiagram } from "@/components/studio/StudioSchemaDiagram";
 import { StudioMetrics } from "@/components/studio/StudioMetrics";
+import StudioLogs from "@/components/studio/StudioLogs";
 import { Loader2, AlertCircle } from "lucide-react";
 
 export default function ProjectStudioPage() {
@@ -104,7 +105,7 @@ export default function ProjectStudioPage() {
 
           {activeModule === "editor" && <StudioTableEditor project={project} />}
 
-          {activeModule === "sql" && <StudioSqlEditor project={project} />}
+          {activeModule === "sql" && <StudioSQL project={project} />}
 
           {activeModule === "database" && <StudioDatabase project={project} activeSubMenu={activeSubMenu} />}
 
@@ -113,6 +114,8 @@ export default function ProjectStudioPage() {
           {activeModule === "storage" && <StudioStorage project={project} />}
 
           {activeModule === "docs" && <StudioApiDocs project={project} />}
+          
+          {activeModule === "logs" && <StudioLogs project={project} />}
 
           {activeModule === "settings" && <StudioSettings project={project} activeSubMenu={activeSubMenu} />}
         </main>
