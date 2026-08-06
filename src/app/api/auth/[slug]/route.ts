@@ -28,22 +28,40 @@ export async function GET(
   try {
     const { slug } = params;
 
-    // Ensure profiles / users table exists
+    // Ensure profiles / users table exists with correct column types
     const initSql = `
       CREATE TABLE IF NOT EXISTS public.profiles (
         id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
         email text UNIQUE NOT NULL,
         full_name text,
-        role text DEFAULT 'user',
-        status font_status DEFAULT 'active',
-        created_at timestamp with time zone DEFAULT now()
+        role text DEFAULT 'authenticated',
+        status text DEFAULT 'active',
+        created_at timestamp with time zone DEFAULT now(),
+        updated_at timestamp with time zone DEFAULT now(),
+        last_sign_in_at timestamp with time zone DEFAULT now(),
+        phone text DEFAULT '-',
+        provider text DEFAULT 'Email'
       );
     `;
-    await executeSqlInTenantDb(slug, initSql).catch(() => {});
+    await executeSqlInTenantDb(slug, initSql).catch((err) => {
+      console.error("Init profiles table error:", err);
+    });
 
     const querySql = `
       SELECT json_agg(u) FROM (
-        SELECT id, email, full_name, role, created_at FROM public.profiles ORDER BY created_at DESC
+        SELECT 
+          id, 
+          email, 
+          full_name, 
+          role, 
+          status, 
+          created_at, 
+          updated_at, 
+          last_sign_in_at, 
+          phone, 
+          provider 
+        FROM public.profiles 
+        ORDER BY created_at DESC
       ) u;
     `;
 
@@ -59,7 +77,7 @@ export async function GET(
       users = [];
     }
 
-    return NextResponse.json({ success: true, tenant: slug, users });
+    return NextResponse.json({ success: true, tenant: slug, users: users || [] });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -72,21 +90,35 @@ export async function POST(
   try {
     const { slug } = params;
     const body = await req.json();
-    const { email, fullName, role } = body;
+    const { email, fullName, role, phone, password } = body;
 
     if (!email) {
       return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
     }
 
+    // Escape single quotes for SQL safety
+    const cleanEmail = email.replace(/'/g, "''");
+    const cleanName = (fullName || "").replace(/'/g, "''");
+    const cleanRole = (role || "authenticated").replace(/'/g, "''");
+    const cleanPhone = (phone || "-").replace(/'/g, "''");
+
     const insertSql = `
-      INSERT INTO public.profiles (email, full_name, role)
-      VALUES ('${email}', '${fullName || ""}', '${role || "user"}')
-      RETURNING id, email, full_name, role, created_at;
+      INSERT INTO public.profiles (email, full_name, role, phone, provider, status)
+      VALUES ('${cleanEmail}', '${cleanName}', '${cleanRole}', '${cleanPhone}', 'Email', 'active')
+      ON CONFLICT (email) DO UPDATE SET 
+        full_name = EXCLUDED.full_name,
+        role = EXCLUDED.role,
+        updated_at = now()
+      RETURNING id, email, full_name, role, status, created_at, phone, provider;
     `;
 
-    await executeSqlInTenantDb(slug, insertSql);
+    const resultOutput = await executeSqlInTenantDb(slug, insertSql);
 
-    return NextResponse.json({ success: true, message: `User '${email}' created successfully.` }, { status: 201 });
+    return NextResponse.json({ 
+      success: true, 
+      message: `User '${email}' saved successfully.`,
+      result: resultOutput 
+    }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
