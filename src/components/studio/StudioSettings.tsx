@@ -17,6 +17,7 @@ import {
   Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface StudioSettingsProps {
   project: Tenant;
@@ -174,7 +175,7 @@ SUPABASE_SERVICE_ROLE_KEY=${project.serviceKey}
                   <div className="space-y-1.5">
                     <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">Password</label>
                     <div className="flex items-center gap-2">
-                      <input type="text" disabled value={showSecrets ? project.dbPassword : "••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <input type="text" disabled value={showSecrets ? (project.dbPassword || "") : "••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
                       <button onClick={() => copyText(project.dbPassword || "", setCopiedDbPassword)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
                         {copiedDbPassword ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
                       </button>
@@ -225,7 +226,7 @@ SUPABASE_SERVICE_ROLE_KEY=${project.serviceKey}
                   <div className="space-y-1.5">
                     <label className="block text-xs uppercase tracking-wide text-[#8b8b8b]">JWT Secret</label>
                     <div className="flex items-center gap-2">
-                      <input type="text" disabled value={showSecrets ? project.jwtSecret : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <input type="text" disabled value={showSecrets ? (project.jwtSecret || "") : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
                       <button onClick={() => copyText(project.jwtSecret || "", setCopiedJwtSecret)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
                         {copiedJwtSecret ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
                       </button>
@@ -246,7 +247,7 @@ SUPABASE_SERVICE_ROLE_KEY=${project.serviceKey}
                       <Badge variant="outline" className="text-xs bg-[#242424] text-brand border-[#3e3e3e]">public</Badge>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input type="text" disabled value={showSecrets ? project.anonKey : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <input type="text" disabled value={showSecrets ? (project.anonKey || "") : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
                       <button onClick={() => copyText(project.anonKey || "", setCopiedAnon)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
                         {copiedAnon ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
                       </button>
@@ -260,7 +261,7 @@ SUPABASE_SERVICE_ROLE_KEY=${project.serviceKey}
                     </div>
                     <p className="text-xs text-[#8b8b8b]">This key has the ability to bypass Row Level Security. Never share it publicly.</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <input type="text" disabled value={showSecrets ? project.serviceKey : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
+                      <input type="text" disabled value={showSecrets ? (project.serviceKey || "") : "••••••••••••••••••••••••••••••••"} className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed] font-mono opacity-70" />
                       <button onClick={() => copyText(project.serviceKey || "", setCopiedService)} className="p-2 bg-[#242424] border border-[#3e3e3e] rounded-md hover:text-[#ededed] text-[#8b8b8b]">
                         {copiedService ? <Check className="w-4 h-4 text-brand" /> : <Copy className="w-4 h-4" />}
                       </button>

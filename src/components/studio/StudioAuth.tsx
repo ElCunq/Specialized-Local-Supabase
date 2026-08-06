@@ -139,6 +139,8 @@ export const StudioAuth: React.FC<StudioAuthProps> = ({ project, activeSubMenu }
       (u.email || "").toLowerCase().includes(q) ||
       (u.id || "").toLowerCase().includes(q) ||
       (u.full_name || "").toLowerCase().includes(q)
+    );
+  });
   return (
     <div className="flex h-full bg-[#1c1c1c] text-[#ededed] font-sans select-none overflow-hidden">
       {/* 2. Main Content Area */}
