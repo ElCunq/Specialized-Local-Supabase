@@ -18,6 +18,7 @@ import {
   Zap,
   RefreshCw,
 } from "lucide-react";
+import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 
 interface StudioOverviewProps {
   project: Tenant;
@@ -35,6 +36,7 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
     authUsersCount: 0,
     webhooksCount: 0,
     successRate: 100.0,
+    history: [] as {time: string, cpu: number, ram: number}[],
   });
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -165,7 +167,7 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
           </div>
         </div>
 
-        {/* Right Topology Node Card */}
+        {/* Right Topology Node Card with Live Chart */}
         <div className="p-6 rounded-xl bg-[#171717] border border-[#282828] flex flex-col justify-between relative overflow-hidden group">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
@@ -180,10 +182,36 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
             <span className="text-lg">🇹🇷</span>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-[#282828] flex items-center justify-between text-xs font-mono text-slate-400">
-            <div>CPU: <span className="text-emerald-400 font-bold">0.1%</span></div>
-            <div>RAM: <span className="text-blue-400 font-bold">35.2 MB</span></div>
-            <div>CONNS: <span className="text-amber-400 font-bold">3/60</span></div>
+          <div className="mt-4 pt-4 border-t border-[#282828]">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-400 mb-2">
+              <div>CPU: <span className="text-emerald-400 font-bold">{stats.history ? stats.history[stats.history.length-1]?.cpu.toFixed(2) : "0"}%</span></div>
+              <div>RAM: <span className="text-blue-400 font-bold">{stats.history ? stats.history[stats.history.length-1]?.ram.toFixed(1) : "0"} MB</span></div>
+              <div>CONNS: <span className="text-amber-400 font-bold">3/60</span></div>
+            </div>
+            
+            {/* Recharts AreaChart */}
+            <div className="h-24 w-full mt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stats.history || []} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#34d399" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#171717', border: '1px solid #282828', borderRadius: '8px', fontSize: '10px' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="cpu" stroke="#34d399" fillOpacity={1} fill="url(#colorCpu)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="ram" stroke="#60a5fa" fillOpacity={1} fill="url(#colorRam)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>

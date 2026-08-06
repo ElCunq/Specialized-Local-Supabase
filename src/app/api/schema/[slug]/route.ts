@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { tenants } from "@/db/schema";
+import { tenants, metrics } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { docker } from "@/lib/docker/client";
 
@@ -77,6 +77,31 @@ export async function GET(
       const rawWhCount = await executeSqlInTenantDb(slug, countWhSql).catch(() => "0");
       const webhookCount = parseInt(rawWhCount.trim()) || 0;
 
+      // Fetch historical metrics from master SQLite DB for the chart
+      const tenantIdRows = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.slug, slug));
+      const tenantId = tenantIdRows[0]?.id;
+
+      let history: any[] = [];
+      if (tenantId) {
+        history = await db.select({
+          time: metrics.lastPing,
+          cpu: metrics.cpuUsage,
+          ram: metrics.ramUsageMb
+        })
+        .from(metrics)
+        .where(eq(metrics.tenantId, tenantId))
+        .orderBy(metrics.lastPing) // Should probably be desc with limit, then reverse, but this is simple enough for small DBs
+        // .limit(20) // You'd typically limit this
+        ;
+        
+        // Take last 20
+        history = history.slice(-20).map(m => ({
+          time: new Date(m.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          cpu: m.cpu,
+          ram: m.ram
+        }));
+      }
+
       return NextResponse.json({
         success: true,
         stats: {
@@ -85,6 +110,9 @@ export async function GET(
           authUsersCount: userCount,
           webhooksCount: webhookCount,
           successRate: 100.0,
+          history: history.length > 0 ? history : [
+            { time: "00:00", cpu: 0, ram: 0 }
+          ]
         },
       });
     }

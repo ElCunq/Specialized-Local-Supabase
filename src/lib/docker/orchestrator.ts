@@ -37,7 +37,7 @@ export async function createTenantPod(params: CreateTenantPodParams) {
   const dbContainer = await docker.createContainer({
     Image: POSTGRES_IMAGE,
     name: dbContainerName,
-    Cmd: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements,pg_cron", "-c", "pg_cron.database_name=postgres"],
+    Cmd: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements,pg_cron,pg_net", "-c", "pg_cron.database_name=postgres"],
     Env: [
       `POSTGRES_PASSWORD=${dbPassword}`,
       `POSTGRES_DB=postgres`,
@@ -396,6 +396,7 @@ export async function initTenantDbRoles(dbContainerName: string) {
         END IF;
       END $$;
       CREATE EXTENSION IF NOT EXISTS pg_cron;
+      CREATE EXTENSION IF NOT EXISTS pg_net;
       GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
       GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
       GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
