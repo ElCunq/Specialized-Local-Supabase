@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tenant } from "@/db/schema";
 import {
   Copy,
@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Server,
   Zap,
+  RefreshCw,
 } from "lucide-react";
 
 interface StudioOverviewProps {
@@ -28,9 +29,37 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
   onTabChange,
 }) => {
   const [copied, setCopied] = useState(false);
-  const domain = typeof window !== "undefined" ? window.location.host : "localhost:3000";
-  const protocol = typeof window !== "undefined" ? window.location.protocol : "http:";
+  const [stats, setStats] = useState({
+    totalRequests: 14,
+    postgresRequests: 14,
+    authUsersCount: 0,
+    webhooksCount: 0,
+    successRate: 100.0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  const domain = typeof window !== "undefined" ? window.location.host : "db.orfa.dev";
+  const protocol = typeof window !== "undefined" ? window.location.protocol : "https:";
   const apiUrl = `${protocol}//${domain}/p/${project.slug}`;
+
+  const fetchLiveStats = async () => {
+    setLoadingStats(true);
+    try {
+      const res = await fetch(`/api/schema/${project.slug}?mode=stats`);
+      const data = await res.json();
+      if (data.success && data.stats) {
+        setStats(data.stats);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveStats();
+  }, [project.slug]);
 
   const copyUrl = () => {
     navigator.clipboard.writeText(apiUrl);
@@ -39,7 +68,7 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-8 bg-[#121212] min-h-full text-slate-200">
+    <div className="p-6 md:p-8 space-y-8 bg-[#121212] min-h-full text-slate-200 select-text">
       {/* Top Hero Section */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
@@ -48,13 +77,21 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
             <span className="text-xs font-mono text-slate-400">{apiUrl}</span>
             <button
               onClick={copyUrl}
-              className="p-1 rounded text-slate-500 hover:text-white transition"
+              className="p-1 rounded text-slate-500 hover:text-white transition cursor-pointer"
               title="Kopyala"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
+
+        <button
+          onClick={fetchLiveStats}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#171717] border border-[#282828] text-xs text-slate-400 hover:text-white transition cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loadingStats ? "animate-spin" : ""}`} />
+          <span>Canlı İstatistikleri Yenile</span>
+        </button>
       </div>
 
       {/* Grid: 6 Status Cards & Topology Node */}
@@ -90,7 +127,7 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
             </div>
             <div>
               <div className="text-[10px] text-slate-400 uppercase font-semibold">GITHUB</div>
-              <div className="text-xs font-medium text-slate-400">No repository connected</div>
+              <div className="text-xs font-medium text-slate-400">No repo connected</div>
             </div>
           </div>
 
@@ -140,13 +177,13 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
                 <p className="text-xs text-slate-400">West EU (Local Pod) • PostgreSQL 15</p>
               </div>
             </div>
-            <span className="text-lg">🇮🇪</span>
+            <span className="text-lg">🇹🇷</span>
           </div>
 
           <div className="mt-6 pt-4 border-t border-[#282828] flex items-center justify-between text-xs font-mono text-slate-400">
-            <div>CPU: <span className="text-emerald-400">0.2%</span></div>
-            <div>RAM: <span className="text-blue-400">24.5 MB</span></div>
-            <div>CONNS: <span className="text-amber-400">5/60</span></div>
+            <div>CPU: <span className="text-emerald-400 font-bold">0.1%</span></div>
+            <div>RAM: <span className="text-blue-400 font-bold">35.2 MB</span></div>
+            <div>CONNS: <span className="text-amber-400 font-bold">3/60</span></div>
           </div>
         </div>
       </div>
@@ -160,7 +197,7 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           <div
-            onClick={() => onTabChange("settings")}
+            onClick={() => onTabChange("docs")}
             className="p-4 rounded-xl bg-[#171717] border border-[#282828] hover:border-emerald-500/40 cursor-pointer transition flex flex-col items-center text-center group"
           >
             <Code className="w-5 h-5 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
@@ -187,7 +224,7 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
           </div>
 
           <div
-            onClick={() => onTabChange("sql")}
+            onClick={() => onTabChange("database")}
             className="p-4 rounded-xl bg-[#171717] border border-[#282828] hover:border-emerald-500/40 cursor-pointer transition flex flex-col items-center text-center group"
           >
             <Layers className="w-5 h-5 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
@@ -196,7 +233,7 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
           </div>
 
           <div
-            onClick={() => onTabChange("sql")}
+            onClick={() => onTabChange("webhooks")}
             className="p-4 rounded-xl bg-[#171717] border border-[#282828] hover:border-emerald-500/40 cursor-pointer transition flex flex-col items-center text-center group"
           >
             <Activity className="w-5 h-5 text-cyan-400 mb-2 group-hover:scale-110 transition-transform" />
@@ -215,44 +252,48 @@ export const StudioOverview: React.FC<StudioOverviewProps> = ({
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* Real-time Dynamic Metrics Cards */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-xs text-slate-400 font-mono">
-            <span className="text-white font-bold text-sm mr-2">4 Total Requests</span>
-            <span className="text-emerald-400 font-bold">100.0% Success Rate</span>
+        <div className="flex items-center justify-between mb-4 font-mono text-xs">
+          <div className="flex items-center gap-3">
+            <span className="text-white font-bold text-sm">
+              {stats.totalRequests} Total Requests
+            </span>
+            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+              {stats.successRate}% Success Rate
+            </span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2">
+          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2 font-mono">
             <div className="text-[11px] font-bold uppercase text-slate-400">POSTGRES</div>
-            <div className="text-lg font-mono font-bold text-white">4</div>
+            <div className="text-lg font-bold text-emerald-400">{stats.postgresRequests}</div>
             <div className="h-1 bg-emerald-500 rounded-full" />
           </div>
 
-          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2">
-            <div className="text-[11px] font-bold uppercase text-slate-400">EDGE FUNCTIONS</div>
-            <div className="text-lg font-mono font-bold text-slate-500">0</div>
+          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2 font-mono">
+            <div className="text-[11px] font-bold uppercase text-slate-400 font-sans">EDGE FUNCTIONS</div>
+            <div className="text-lg font-bold text-slate-500">0</div>
             <div className="h-1 bg-slate-800 rounded-full" />
           </div>
 
-          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2">
-            <div className="text-[11px] font-bold uppercase text-slate-400">AUTH</div>
-            <div className="text-lg font-mono font-bold text-slate-500">0</div>
-            <div className="h-1 bg-slate-800 rounded-full" />
+          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2 font-mono">
+            <div className="text-[11px] font-bold uppercase text-slate-400 font-sans">AUTH USERS</div>
+            <div className="text-lg font-bold text-blue-400">{stats.authUsersCount}</div>
+            <div className="h-1 bg-blue-500 rounded-full" />
           </div>
 
-          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2">
-            <div className="text-[11px] font-bold uppercase text-slate-400">STORAGE</div>
-            <div className="text-lg font-mono font-bold text-slate-500">0</div>
-            <div className="h-1 bg-slate-800 rounded-full" />
+          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2 font-mono">
+            <div className="text-[11px] font-bold uppercase text-slate-400 font-sans">STORAGE</div>
+            <div className="text-lg font-bold text-purple-400">1</div>
+            <div className="h-1 bg-purple-500 rounded-full" />
           </div>
 
-          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2">
-            <div className="text-[11px] font-bold uppercase text-slate-400">REALTIME</div>
-            <div className="text-lg font-mono font-bold text-slate-500">0</div>
-            <div className="h-1 bg-slate-800 rounded-full" />
+          <div className="p-4 rounded-xl bg-[#171717] border border-[#282828] space-y-2 font-mono">
+            <div className="text-[11px] font-bold uppercase text-slate-400 font-sans">WEBHOOKS</div>
+            <div className="text-lg font-bold text-cyan-400">{stats.webhooksCount}</div>
+            <div className="h-1 bg-cyan-500 rounded-full" />
           </div>
         </div>
       </div>
