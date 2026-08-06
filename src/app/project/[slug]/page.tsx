@@ -81,7 +81,7 @@ export default function ProjectStudioPage() {
       {/* Real Official Supabase Studio Embedded Frame */}
       <div className="flex-1 w-full h-full relative bg-[#171717]">
         <iframe
-          src={`http://localhost:8082/project/default`}
+          src={`http://localhost:8083/project/default`}
           className="w-full h-full border-none"
           title={`Supabase Studio - ${project.name}`}
         />
