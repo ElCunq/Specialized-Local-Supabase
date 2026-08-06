@@ -7,6 +7,7 @@ const POSTGRES_IMAGE = "supabase/postgres:15.1.1.78";
 const POSTGREST_IMAGE = "postgrest/postgrest:v12.2.0";
 const POSTGRES_META_IMAGE = "supabase/postgres-meta:v0.84.1";
 const GOTRUE_IMAGE = "supabase/gotrue:v2.132.3";
+const PGBOUNCER_IMAGE = "edoburu/pgbouncer:latest";
 
 /**
  * Creates an isolated Tenant Pod (PostgreSQL + PostgREST + Postgres-Meta) with Traefik Proxy labels.
@@ -30,11 +31,13 @@ export async function createTenantPod(params: CreateTenantPodParams) {
   await pullImageIfNeeded(POSTGREST_IMAGE);
   await pullImageIfNeeded(POSTGRES_META_IMAGE);
   await pullImageIfNeeded(GOTRUE_IMAGE);
+  await pullImageIfNeeded(PGBOUNCER_IMAGE);
 
   // 3. Create PostgreSQL Container (~30MB RAM base)
   const dbContainer = await docker.createContainer({
     Image: POSTGRES_IMAGE,
     name: dbContainerName,
+    Cmd: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements,pg_cron", "-c", "pg_cron.database_name=postgres"],
     Env: [
       `POSTGRES_PASSWORD=${dbPassword}`,
       `POSTGRES_DB=postgres`,
@@ -57,8 +60,38 @@ export async function createTenantPod(params: CreateTenantPodParams) {
   // Start DB Container first
   await dbContainer.start();
 
-  // Initialize standard Supabase roles (anon, authenticated, service_role)
+  // Initialize standard Supabase roles (anon, authenticated, service_role) and pg_cron
   await initTenantDbRoles(dbContainerName);
+
+  // 3.5. Create PgBouncer Container (~5MB RAM)
+  const pgbouncerContainerName = `project_${slug}_pgbouncer`;
+  const pgbouncerContainer = await docker.createContainer({
+    Image: PGBOUNCER_IMAGE,
+    name: pgbouncerContainerName,
+    Env: [
+      `DB_USER=postgres`,
+      `DB_PASSWORD=${dbPassword}`,
+      `DB_HOST=${dbContainerName}`,
+      `DB_NAME=postgres`,
+      `POOL_MODE=transaction`,
+      `MAX_CLIENT_CONN=1000`,
+      `DEFAULT_POOL_SIZE=20`,
+      `ADMIN_USERS=postgres`,
+      `IGNORE_STARTUP_PARAMETERS=extra_float_digits`
+    ],
+    HostConfig: {
+      Memory: 16 * 1024 * 1024, // 16 MB Limit
+      RestartPolicy: { Name: "unless-stopped" },
+    },
+    NetworkingConfig: {
+      EndpointsConfig: {
+        [networkName]: {},
+        [PUBLIC_GATEWAY_NETWORK]: {},
+      },
+    },
+  });
+
+  await pgbouncerContainer.start();
 
   // 4. Generate Traefik Dynamic Routing Labels for PostgREST
   const traefikLabels = generateTraefikLabels({ slug });
@@ -69,7 +102,7 @@ export async function createTenantPod(params: CreateTenantPodParams) {
     name: restContainerName,
     Labels: traefikLabels,
     Env: [
-      `PGRST_DB_URI=postgres://postgres:${dbPassword}@${dbContainerName}:5432/postgres`,
+      `PGRST_DB_URI=postgres://postgres:${dbPassword}@${pgbouncerContainerName}:6432/postgres`,
       `PGRST_DB_SCHEMA=public`,
       `PGRST_DB_ANON_ROLE=anon`,
       `PGRST_JWT_SECRET=${jwtSecret}`,
@@ -124,7 +157,7 @@ export async function createTenantPod(params: CreateTenantPodParams) {
       `GOTRUE_API_HOST=0.0.0.0`,
       `GOTRUE_API_PORT=9999`,
       `GOTRUE_DB_DRIVER=postgres`,
-      `GOTRUE_DB_DATABASE_URL=postgres://postgres:${dbPassword}@${dbContainerName}:5432/postgres`,
+      `GOTRUE_DB_DATABASE_URL=postgres://postgres:${dbPassword}@${pgbouncerContainerName}:6432/postgres`,
       `GOTRUE_SITE_URL=http://localhost:3000`,
       `GOTRUE_JWT_SECRET=${jwtSecret}`,
       `GOTRUE_JWT_EXP=3600`,
@@ -161,21 +194,25 @@ export async function toggleTenantStatus(slug: string, action: "pause" | "resume
   const restContainerName = `project_${slug}_rest`;
   const metaContainerName = `project_${slug}_meta`;
   const authContainerName = `project_${slug}_auth`;
+  const pgbouncerContainerName = `project_${slug}_pgbouncer`;
 
   const dbContainer = docker.getContainer(dbContainerName);
   const restContainer = docker.getContainer(restContainerName);
   const metaContainer = docker.getContainer(metaContainerName);
   const authContainer = docker.getContainer(authContainerName);
+  const pgbouncerContainer = docker.getContainer(pgbouncerContainerName);
 
   if (action === "pause") {
     try { await authContainer.stop({ t: 2 }); } catch {}
     try { await metaContainer.stop({ t: 2 }); } catch {}
     try { await restContainer.stop({ t: 2 }); } catch {}
+    try { await pgbouncerContainer.stop({ t: 2 }); } catch {}
     try { await dbContainer.stop({ t: 5 }); } catch {}
   } else {
     try {
       await dbContainer.start();
       await new Promise((resolve) => setTimeout(resolve, 2000));
+      await pgbouncerContainer.start();
       await restContainer.start();
       await metaContainer.start();
       await authContainer.start();
@@ -193,6 +230,7 @@ export async function deleteTenantPod(slug: string, removeVolume = true) {
   const restContainerName = `project_${slug}_rest`;
   const metaContainerName = `project_${slug}_meta`;
   const authContainerName = `project_${slug}_auth`;
+  const pgbouncerContainerName = `project_${slug}_pgbouncer`;
   const networkName = `project_${slug}_net`;
   const volumeName = `project_${slug}_db_data`;
 
@@ -201,6 +239,13 @@ export async function deleteTenantPod(slug: string, removeVolume = true) {
     const authContainer = docker.getContainer(authContainerName);
     await authContainer.stop({ t: 2 }).catch(() => {});
     await authContainer.remove({ force: true });
+  } catch {}
+
+  // Stop & Remove PgBouncer Container
+  try {
+    const pgbouncerContainer = docker.getContainer(pgbouncerContainerName);
+    await pgbouncerContainer.stop({ t: 2 }).catch(() => {});
+    await pgbouncerContainer.remove({ force: true });
   } catch {}
 
   // Stop & Remove Meta Container
@@ -350,6 +395,7 @@ export async function initTenantDbRoles(dbContainerName: string) {
           CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
         END IF;
       END $$;
+      CREATE EXTENSION IF NOT EXISTS pg_cron;
       GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
       GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
       GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
