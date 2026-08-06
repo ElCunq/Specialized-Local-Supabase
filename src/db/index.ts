@@ -69,6 +69,14 @@ export async function ensureDbMigrated() {
     // Ignore lock errors if another worker migrated
     isMigrated = true;
   }
+
+  // Schema updates (migrations)
+  try {
+    await client.execute(`ALTER TABLE tenants ADD COLUMN addon_redis INTEGER NOT NULL DEFAULT 0;`);
+  } catch (e) {}
+  try {
+    await client.execute(`ALTER TABLE tenants ADD COLUMN addon_edge_functions INTEGER NOT NULL DEFAULT 0;`);
+  } catch (e) {}
 }
 
 ensureDbMigrated();

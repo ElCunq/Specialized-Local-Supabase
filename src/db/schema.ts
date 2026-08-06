@@ -25,6 +25,10 @@ export const tenants = sqliteTable("tenants", {
   dbPort: integer("db_port"),
   restPort: integer("rest_port"),
 
+  // Add-ons
+  addonRedis: integer("addon_redis").notNull().default(0),
+  addonEdgeFunctions: integer("addon_edge_functions").notNull().default(0),
+
   // Timestamps
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()

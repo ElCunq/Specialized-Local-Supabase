@@ -8,6 +8,8 @@ const POSTGREST_IMAGE = "postgrest/postgrest:v12.2.0";
 const POSTGRES_META_IMAGE = "supabase/postgres-meta:v0.84.1";
 const GOTRUE_IMAGE = "supabase/gotrue:v2.132.3";
 const PGBOUNCER_IMAGE = "edoburu/pgbouncer:latest";
+const REDIS_IMAGE = "redis:7-alpine";
+const EDGE_RUNTIME_IMAGE = "supabase/edge-runtime:latest";
 
 /**
  * Creates an isolated Tenant Pod (PostgreSQL + PostgREST + Postgres-Meta) with Traefik Proxy labels.
@@ -189,23 +191,91 @@ export async function createTenantPod(params: CreateTenantPodParams) {
 /**
  * Toggles Tenant Pod status (Pause / Resume for Scale-to-Zero capability)
  */
+export async function toggleAddon(slug: string, addon: 'redis' | 'edge_functions', enable: boolean, dbPassword?: string) {
+  const networkName = `project_${slug}_net`;
+  
+  if (addon === 'redis') {
+    const containerName = `project_${slug}_redis`;
+    if (enable) {
+      await pullImageIfNeeded(REDIS_IMAGE);
+      const container = await docker.createContainer({
+        Image: REDIS_IMAGE,
+        name: containerName,
+        HostConfig: {
+          Memory: 32 * 1024 * 1024, // 32MB limit
+          RestartPolicy: { Name: "unless-stopped" },
+        },
+        NetworkingConfig: {
+          EndpointsConfig: {
+            [networkName]: {},
+          },
+        },
+      });
+      await container.start();
+    } else {
+      try {
+        const container = docker.getContainer(containerName);
+        await container.stop({ t: 2 }).catch(() => {});
+        await container.remove({ force: true });
+      } catch {}
+    }
+  } else if (addon === 'edge_functions') {
+    const containerName = `project_${slug}_edge_functions`;
+    if (enable) {
+      await pullImageIfNeeded(EDGE_RUNTIME_IMAGE);
+      const container = await docker.createContainer({
+        Image: EDGE_RUNTIME_IMAGE,
+        name: containerName,
+        Cmd: ["start", "--main-service", "/home/deno/main"],
+        Env: [
+          `SUPABASE_URL=http://project_${slug}_rest:3000`,
+          `SUPABASE_ANON_KEY=placeholder`, // Edge runtime usually connects back to Kong/REST
+        ],
+        HostConfig: {
+          Memory: 64 * 1024 * 1024, // 64MB limit
+          RestartPolicy: { Name: "unless-stopped" },
+        },
+        NetworkingConfig: {
+          EndpointsConfig: {
+            [networkName]: {},
+            [PUBLIC_GATEWAY_NETWORK]: {},
+          },
+        },
+      });
+      await container.start();
+    } else {
+      try {
+        const container = docker.getContainer(containerName);
+        await container.stop({ t: 2 }).catch(() => {});
+        await container.remove({ force: true });
+      } catch {}
+    }
+  }
+}
+
 export async function toggleTenantStatus(slug: string, action: "pause" | "resume") {
   const dbContainerName = `project_${slug}_db`;
   const restContainerName = `project_${slug}_rest`;
   const metaContainerName = `project_${slug}_meta`;
   const authContainerName = `project_${slug}_auth`;
   const pgbouncerContainerName = `project_${slug}_pgbouncer`;
+  const redisContainerName = `project_${slug}_redis`;
+  const edgeContainerName = `project_${slug}_edge_functions`;
 
   const dbContainer = docker.getContainer(dbContainerName);
   const restContainer = docker.getContainer(restContainerName);
   const metaContainer = docker.getContainer(metaContainerName);
   const authContainer = docker.getContainer(authContainerName);
   const pgbouncerContainer = docker.getContainer(pgbouncerContainerName);
+  const redisContainer = docker.getContainer(redisContainerName);
+  const edgeContainer = docker.getContainer(edgeContainerName);
 
   if (action === "pause") {
+    try { await edgeContainer.stop({ t: 2 }); } catch {}
     try { await authContainer.stop({ t: 2 }); } catch {}
     try { await metaContainer.stop({ t: 2 }); } catch {}
     try { await restContainer.stop({ t: 2 }); } catch {}
+    try { await redisContainer.stop({ t: 2 }); } catch {}
     try { await pgbouncerContainer.stop({ t: 2 }); } catch {}
     try { await dbContainer.stop({ t: 5 }); } catch {}
   } else {
@@ -213,9 +283,11 @@ export async function toggleTenantStatus(slug: string, action: "pause" | "resume
       await dbContainer.start();
       await new Promise((resolve) => setTimeout(resolve, 2000));
       await pgbouncerContainer.start();
+      try { await redisContainer.start(); } catch {}
       await restContainer.start();
       await metaContainer.start();
       await authContainer.start();
+      try { await edgeContainer.start(); } catch {}
     } catch (err: any) {
       throw new Error(`Failed to resume pod for ${slug}: ${err.message}`);
     }
@@ -231,8 +303,17 @@ export async function deleteTenantPod(slug: string, removeVolume = true) {
   const metaContainerName = `project_${slug}_meta`;
   const authContainerName = `project_${slug}_auth`;
   const pgbouncerContainerName = `project_${slug}_pgbouncer`;
+  const redisContainerName = `project_${slug}_redis`;
+  const edgeContainerName = `project_${slug}_edge_functions`;
   const networkName = `project_${slug}_net`;
   const volumeName = `project_${slug}_db_data`;
+
+  // Stop & Remove Edge Functions Container
+  try {
+    const edgeContainer = docker.getContainer(edgeContainerName);
+    await edgeContainer.stop({ t: 2 }).catch(() => {});
+    await edgeContainer.remove({ force: true });
+  } catch {}
 
   // Stop & Remove Auth Container
   try {
@@ -246,6 +327,13 @@ export async function deleteTenantPod(slug: string, removeVolume = true) {
     const pgbouncerContainer = docker.getContainer(pgbouncerContainerName);
     await pgbouncerContainer.stop({ t: 2 }).catch(() => {});
     await pgbouncerContainer.remove({ force: true });
+  } catch {}
+
+  // Stop & Remove Redis Container
+  try {
+    const redisContainer = docker.getContainer(redisContainerName);
+    await redisContainer.stop({ t: 2 }).catch(() => {});
+    await redisContainer.remove({ force: true });
   } catch {}
 
   // Stop & Remove Meta Container

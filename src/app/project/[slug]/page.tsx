@@ -17,6 +17,7 @@ import { StudioApiDocs } from "@/components/studio/StudioApiDocs";
 import { StudioSchemaDiagram } from "@/components/studio/StudioSchemaDiagram";
 import { StudioMetrics } from "@/components/studio/StudioMetrics";
 import StudioLogs from "@/components/studio/StudioLogs";
+import { StudioAddons } from "@/components/studio/StudioAddons";
 import { Loader2, AlertCircle } from "lucide-react";
 
 export default function ProjectStudioPage() {
@@ -116,6 +117,8 @@ export default function ProjectStudioPage() {
           {activeModule === "docs" && <StudioApiDocs project={project} />}
           
           {activeModule === "logs" && <StudioLogs project={project} />}
+
+          {activeModule === "addons" && <StudioAddons project={project} />}
 
           {activeModule === "settings" && <StudioSettings project={project} activeSubMenu={activeSubMenu} />}
         </main>

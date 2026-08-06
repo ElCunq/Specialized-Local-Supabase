@@ -16,6 +16,7 @@ import {
   Activity,
   Layers,
   ChevronRight,
+  Puzzle,
 } from "lucide-react";
 
 export type StudioModule =
@@ -27,6 +28,7 @@ export type StudioModule =
   | "storage"
   | "docs"
   | "logs"
+  | "addons"
   | "settings";
 
 export type StudioSubMenu = string;
@@ -55,6 +57,7 @@ export const StudioSidebar: React.FC<StudioSidebarProps> = ({
     { id: "storage", label: "Storage", icon: <HardDrive className="w-5 h-5" /> },
     { id: "docs", label: "API Docs", icon: <BookOpen className="w-5 h-5" /> },
     { id: "logs", label: "Logs", icon: <Activity className="w-5 h-5" /> },
+    { id: "addons", label: "Add-ons", icon: <Puzzle className="w-5 h-5" /> },
     { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
   ];
 
