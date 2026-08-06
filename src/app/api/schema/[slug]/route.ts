@@ -57,27 +57,15 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get("mode");
 
-    // Live Database Stats from pg_stat_database
+    // Live User Activity Stats from pg_stat_user_tables
+    // This measures real application requests to user tables without inflating on page refreshes
     if (mode === "stats") {
       const statsSql = `
-        SELECT json_build_object(
-          'total_tx', (xact_commit + xact_rollback),
-          'tuples_returned', tup_returned,
-          'tuples_fetched', tup_fetched,
-          'tuples_inserted', tup_inserted,
-          'tuples_updated', tup_updated,
-          'tuples_deleted', tup_deleted
-        ) FROM pg_stat_database WHERE datname = 'postgres';
+        SELECT COALESCE(SUM(seq_scan + idx_scan + n_tup_ins + n_tup_upd + n_tup_del), 0) AS total_user_requests
+        FROM pg_stat_user_tables;
       `;
-      const rawStats = await executeSqlInTenantDb(slug, statsSql).catch(() => "");
-      let dbStats = { total_tx: 12, tuples_returned: 0, tuples_inserted: 0, tuples_updated: 0 };
-      try {
-        const jsonStart = rawStats.indexOf("{");
-        const jsonEnd = rawStats.lastIndexOf("}");
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-          dbStats = JSON.parse(rawStats.substring(jsonStart, jsonEnd + 1));
-        }
-      } catch {}
+      const rawUserReqs = await executeSqlInTenantDb(slug, statsSql).catch(() => "0");
+      const userRequests = parseInt(rawUserReqs.trim()) || 0;
 
       // Count profiles
       const countUsersSql = `SELECT count(*) FROM public.profiles;`;
@@ -89,13 +77,11 @@ export async function GET(
       const rawWhCount = await executeSqlInTenantDb(slug, countWhSql).catch(() => "0");
       const webhookCount = parseInt(rawWhCount.trim()) || 0;
 
-      const totalRequests = (dbStats.total_tx || 0) + (dbStats.tuples_inserted || 0) + (dbStats.tuples_updated || 0) + 5;
-
       return NextResponse.json({
         success: true,
         stats: {
-          totalRequests,
-          postgresRequests: totalRequests,
+          totalRequests: userRequests,
+          postgresRequests: userRequests,
           authUsersCount: userCount,
           webhooksCount: webhookCount,
           successRate: 100.0,
