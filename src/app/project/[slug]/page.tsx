@@ -47,13 +47,16 @@ export default function ProjectStudioPage() {
 
   useEffect(() => {
     fetchProject();
-  }, [fetchProject]);
+    if (typeof window !== "undefined" && slug) {
+      document.cookie = `active_project_slug=${slug}; path=/; max-age=86400`;
+    }
+  }, [fetchProject, slug]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#121212] flex items-center justify-center text-slate-400 gap-3 font-mono text-xs">
         <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
-        <span>Loading Supabase Studio for /{slug}...</span>
+        <span>Loading Official Supabase Studio for /{slug}...</span>
       </div>
     );
   }
@@ -72,42 +75,16 @@ export default function ProjectStudioPage() {
 
   return (
     <div className="h-screen bg-[#121212] flex flex-col overflow-hidden select-text">
-      {/* Top Header */}
+      {/* Control Plane Top Header */}
       <StudioHeader project={project} />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
-        <StudioSidebar
-          activeTab={activeTab}
-          onTabChange={(t) => setActiveTab(t)}
-          slug={slug}
+      {/* Real Official Supabase Studio Embedded Frame */}
+      <div className="flex-1 w-full h-full relative bg-[#171717]">
+        <iframe
+          src={`http://localhost:8082/project/default`}
+          className="w-full h-full border-none"
+          title={`Supabase Studio - ${project.name}`}
         />
-
-        {/* Dynamic Studio View Content */}
-        <main className="flex-1 overflow-y-auto bg-[#121212]">
-          {activeTab === "overview" && (
-            <StudioOverview project={project} onTabChange={(t) => setActiveTab(t)} />
-          )}
-
-          {activeTab === "editor" && <StudioTableEditor project={project} />}
-
-          {activeTab === "sql" && <StudioSqlEditor project={project} />}
-
-          {activeTab === "database" && <StudioSchemaDiagram project={project} />}
-
-          {activeTab === "auth" && <StudioAuth project={project} />}
-
-          {activeTab === "storage" && <StudioStorage project={project} />}
-
-          {activeTab === "webhooks" && <StudioWebhooks project={project} />}
-
-          {activeTab === "docs" && <StudioApiDocs project={project} />}
-
-          {activeTab === "metrics" && <StudioMetrics project={project} />}
-
-          {activeTab === "settings" && <StudioSettings project={project} />}
-        </main>
       </div>
     </div>
   );

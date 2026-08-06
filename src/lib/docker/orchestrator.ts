@@ -5,15 +5,17 @@ import { CreateTenantPodParams, TenantPodStatus } from "./types";
 const PUBLIC_GATEWAY_NETWORK = process.env.TRAEFIK_NETWORK || "coolify";
 const POSTGRES_IMAGE = "supabase/postgres:15.1.1.78";
 const POSTGREST_IMAGE = "postgrest/postgrest:v12.2.0";
+const POSTGRES_META_IMAGE = "supabase/postgres-meta:v0.84.1";
 
 /**
- * Creates an isolated Tenant Pod (PostgreSQL + PostgREST) with Traefik Proxy labels.
+ * Creates an isolated Tenant Pod (PostgreSQL + PostgREST + Postgres-Meta) with Traefik Proxy labels.
  */
 export async function createTenantPod(params: CreateTenantPodParams) {
   const { slug, dbPassword, jwtSecret } = params;
 
   const dbContainerName = `project_${slug}_db`;
   const restContainerName = `project_${slug}_rest`;
+  const metaContainerName = `project_${slug}_meta`;
   const networkName = `project_${slug}_net`;
   const volumeName = `project_${slug}_db_data`;
 
@@ -24,6 +26,7 @@ export async function createTenantPod(params: CreateTenantPodParams) {
   // 2. Ensure Images are pulled
   await pullImageIfNeeded(POSTGRES_IMAGE);
   await pullImageIfNeeded(POSTGREST_IMAGE);
+  await pullImageIfNeeded(POSTGRES_META_IMAGE);
 
   // 3. Create PostgreSQL Container (~30MB RAM base)
   const dbContainer = await docker.createContainer({
@@ -43,6 +46,7 @@ export async function createTenantPod(params: CreateTenantPodParams) {
     NetworkingConfig: {
       EndpointsConfig: {
         [networkName]: {},
+        [PUBLIC_GATEWAY_NETWORK]: {},
       },
     },
   });
@@ -83,9 +87,36 @@ export async function createTenantPod(params: CreateTenantPodParams) {
   // Start PostgREST Container
   await restContainer.start();
 
+  // 6. Create Postgres Meta Container for Studio inspection (~20MB RAM)
+  const metaContainer = await docker.createContainer({
+    Image: POSTGRES_META_IMAGE,
+    name: metaContainerName,
+    Env: [
+      `PG_META_PORT=8080`,
+      `PG_META_DB_HOST=${dbContainerName}`,
+      `PG_META_DB_PORT=5432`,
+      `PG_META_DB_NAME=postgres`,
+      `PG_META_DB_USER=postgres`,
+      `PG_META_DB_PASSWORD=${dbPassword}`,
+    ],
+    HostConfig: {
+      Memory: 32 * 1024 * 1024,
+      RestartPolicy: { Name: "unless-stopped" },
+    },
+    NetworkingConfig: {
+      EndpointsConfig: {
+        [networkName]: {},
+        [PUBLIC_GATEWAY_NETWORK]: {},
+      },
+    },
+  });
+
+  await metaContainer.start();
+
   return {
     dbContainerId: dbContainer.id,
     restContainerId: restContainer.id,
+    metaContainerId: metaContainer.id,
     network: networkName,
   };
 }
@@ -96,24 +127,22 @@ export async function createTenantPod(params: CreateTenantPodParams) {
 export async function toggleTenantStatus(slug: string, action: "pause" | "resume") {
   const dbContainerName = `project_${slug}_db`;
   const restContainerName = `project_${slug}_rest`;
+  const metaContainerName = `project_${slug}_meta`;
 
   const dbContainer = docker.getContainer(dbContainerName);
   const restContainer = docker.getContainer(restContainerName);
+  const metaContainer = docker.getContainer(metaContainerName);
 
   if (action === "pause") {
-    // Stop REST first, then DB to allow graceful shutdown
-    try {
-      await restContainer.stop({ t: 3 });
-    } catch {}
-    try {
-      await dbContainer.stop({ t: 5 });
-    } catch {}
+    try { await metaContainer.stop({ t: 2 }); } catch {}
+    try { await restContainer.stop({ t: 2 }); } catch {}
+    try { await dbContainer.stop({ t: 5 }); } catch {}
   } else {
-    // Start DB first, wait slightly, then start REST
     try {
       await dbContainer.start();
       await new Promise((resolve) => setTimeout(resolve, 2000));
       await restContainer.start();
+      await metaContainer.start();
     } catch (err: any) {
       throw new Error(`Failed to resume pod for ${slug}: ${err.message}`);
     }
@@ -126,8 +155,16 @@ export async function toggleTenantStatus(slug: string, action: "pause" | "resume
 export async function deleteTenantPod(slug: string, removeVolume = true) {
   const dbContainerName = `project_${slug}_db`;
   const restContainerName = `project_${slug}_rest`;
+  const metaContainerName = `project_${slug}_meta`;
   const networkName = `project_${slug}_net`;
   const volumeName = `project_${slug}_db_data`;
+
+  // Stop & Remove Meta Container
+  try {
+    const metaContainer = docker.getContainer(metaContainerName);
+    await metaContainer.stop({ t: 2 }).catch(() => {});
+    await metaContainer.remove({ force: true });
+  } catch {}
 
   // Stop & Remove PostgREST Container
   try {
