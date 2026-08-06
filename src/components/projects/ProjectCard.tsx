@@ -21,8 +21,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
+export interface ProjectWithMetrics extends Tenant {
+  ramUsage?: string;
+  cpuUsage?: string;
+}
+
 interface ProjectCardProps {
-  project: Tenant;
+  project: ProjectWithMetrics;
   onRefresh: () => void;
   onOpenExplorer: (slug: string) => void;
 }
@@ -34,6 +39,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 }) => {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedAnon, setCopiedAnon] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -140,14 +146,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Resource Usage Stats Cards */}
+          {/* Real-Time Resource Usage Stats Cards */}
           <div className="grid grid-cols-2 gap-2.5">
             <div className="p-2.5 rounded-lg bg-[#09090b] border border-[#27272a] flex items-center gap-2.5">
               <HardDrive className="w-3.5 h-3.5 text-blue-400" />
               <div>
                 <div className="text-[10px] text-slate-400 uppercase font-semibold">RAM Kullanımı</div>
                 <div className="text-xs font-mono text-white font-bold">
-                  {project.status === "active" ? "~35.2 MB" : "0 MB (Pasif)"}
+                  {project.ramUsage || (project.status === "active" ? "Canlı hesaplanıyor..." : "0 MB (Pasif)")}
                 </div>
               </div>
             </div>
@@ -157,7 +163,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               <div>
                 <div className="text-[10px] text-slate-400 uppercase font-semibold">CPU Yükü</div>
                 <div className="text-xs font-mono text-white font-bold">
-                  {project.status === "active" ? "~0.1 %" : "0 %"}
+                  {project.cpuUsage || (project.status === "active" ? "0.0 %" : "0 %")}
                 </div>
               </div>
             </div>
@@ -226,9 +232,15 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             </Button>
           </a>
 
-          <span className="text-[10px] text-slate-500 font-mono">
-            {project.id.slice(0, 8)}
-          </span>
+          {/* Full Real Project ID with Copy action */}
+          <button
+            onClick={() => copyToClipboard(project.id, setCopiedId)}
+            className="flex items-center gap-1 text-[11px] text-slate-400 font-mono hover:text-white transition cursor-pointer"
+            title="Proje ID'sini Kopyala"
+          >
+            <span>{project.id}</span>
+            {copiedId ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-500" />}
+          </button>
         </CardFooter>
       </div>
     </Card>

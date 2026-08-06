@@ -4,12 +4,62 @@ import { tenants, apiKeys } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateRandomSecret, generateProjectJwtTokens } from "@/lib/security/crypto";
 import { createTenantPod } from "@/lib/docker/orchestrator";
+import { docker } from "@/lib/docker/client";
+
+/**
+ * Fetches real-time RAM and CPU metrics for a tenant's PostgreSQL container
+ */
+async function getContainerMetrics(slug: string, status: string) {
+  if (status !== "active") {
+    return { ramUsage: "0 MB", cpuUsage: "0 %" };
+  }
+
+  try {
+    const container = docker.getContainer(`project_${slug}_db`);
+    const stats: any = await container.stats({ stream: false });
+
+    // Calculate RAM usage (usage minus cache for accurate resident memory)
+    const memUsageBytes = stats.memory_stats?.usage || 0;
+    const cacheBytes = stats.memory_stats?.stats?.cache || 0;
+    const netMemBytes = Math.max(0, memUsageBytes - cacheBytes);
+    const ramMb = (netMemBytes / (1024 * 1024)).toFixed(1);
+
+    // Calculate CPU usage percentage
+    const cpuDelta = (stats.cpu_stats?.cpu_usage?.total_usage || 0) - (stats.precpu_stats?.cpu_usage?.total_usage || 0);
+    const systemCpuDelta = (stats.cpu_stats?.system_cpu_usage || 0) - (stats.precpu_stats?.system_cpu_usage || 0);
+    const numberCpus = stats.cpu_stats?.online_cpus || 1;
+    let cpuPercent = "0.1";
+    if (systemCpuDelta > 0 && cpuDelta > 0) {
+      cpuPercent = ((cpuDelta / systemCpuDelta) * numberCpus * 100).toFixed(1);
+    }
+
+    return {
+      ramUsage: `${ramMb} MB`,
+      cpuUsage: `${cpuPercent} %`,
+    };
+  } catch (e) {
+    return { ramUsage: "0 MB", cpuUsage: "0 %" };
+  }
+}
 
 export async function GET() {
   try {
     await ensureDbMigrated();
     const allProjects = await db.select().from(tenants);
-    return NextResponse.json({ success: true, projects: allProjects });
+
+    // Query live Docker stats in parallel for all projects
+    const projectsWithMetrics = await Promise.all(
+      allProjects.map(async (project) => {
+        const metrics = await getContainerMetrics(project.slug, project.status);
+        return {
+          ...project,
+          ramUsage: metrics.ramUsage,
+          cpuUsage: metrics.cpuUsage,
+        };
+      })
+    );
+
+    return NextResponse.json({ success: true, projects: projectsWithMetrics });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
