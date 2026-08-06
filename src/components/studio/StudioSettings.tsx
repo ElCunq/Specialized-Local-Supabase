@@ -118,6 +118,31 @@ SUPABASE_SERVICE_ROLE_KEY=${project.serviceKey}
                       </button>
                     </div>
                   </div>
+                  
+                  <div className="space-y-1.5 pt-4 border-t border-[#2e2e2e]">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm font-medium text-[#ededed]">Scale to Zero (Auto-Pause)</label>
+                      <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Resource Saver</Badge>
+                    </div>
+                    <p className="text-xs text-[#8b8b8b] mb-3">Automatically pause the project after a period of inactivity to save RAM and CPU. It will wake up when you visit the dashboard.</p>
+                    <select 
+                      defaultValue={(project as any).autoPauseInterval || 1440}
+                      onChange={(e) => {
+                        fetch(`/api/projects/${project.id}/settings`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ autoPauseInterval: parseInt(e.target.value) })
+                        }).then(() => alert("Auto-Pause interval updated."));
+                      }}
+                      className="w-full bg-[#242424] border border-[#3e3e3e] rounded-md px-3 py-2 text-sm text-[#ededed]"
+                    >
+                      <option value="60">1 Hour</option>
+                      <option value="720">12 Hours</option>
+                      <option value="1440">24 Hours</option>
+                      <option value="10080">1 Week</option>
+                      <option value="0">Never (Always On)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

@@ -632,22 +632,48 @@ void main() async {
         </div>
       )}
 
-      {/* CATEGORY 5: WEBHOOKS */}
+      {/* CATEGORY 5: WEBHOOKS & AI AGENT API */}
       {docCategory === "webhooks" && (
-        <div className="p-6 rounded-xl bg-[#171717] border border-[#282828] space-y-6 text-xs font-mono">
-          <h3 className="text-sm font-bold text-white border-b border-[#282828] pb-3">Database Webhooks Specs</h3>
-          <p className="text-slate-400 font-sans">Veritabanında kayıt oluştuğunda dış API'lere gönderilen JSON bildirim yapısı:</p>
-          <pre className="p-4 rounded-xl bg-[#121212] border border-[#282828] text-cyan-300 select-text">{`{
-  "event": "INSERT",
-  "table": "orders",
-  "schema": "public",
-  "record": {
-    "id": "ord_999",
-    "total": 199.99,
-    "status": "paid"
-  },
-  "timestamp": "2026-07-24T14:33:00Z"
-}`}</pre>
+        <div className="space-y-6">
+          <div className="p-6 rounded-xl bg-[#171717] border border-[#282828] space-y-6 text-xs font-mono">
+            <h3 className="text-sm font-bold text-white border-b border-[#282828] pb-3">Database Webhooks Specs</h3>
+            <p className="text-slate-400 font-sans">Veritabanında kayıt oluştuğunda dış API'lere gönderilen JSON bildirim yapısı:</p>
+            <pre className="p-4 rounded-xl bg-[#121212] border border-[#282828] text-cyan-300 select-text">{`{
+    "event": "INSERT",
+    "table": "orders",
+    "schema": "public",
+    "record": {
+      "id": "ord_999",
+      "total": 199.99,
+      "status": "paid"
+    },
+    "timestamp": "2026-07-24T14:33:00Z"
+  }`}</pre>
+          </div>
+
+          <div className="p-6 rounded-xl bg-[#171717] border border-[#282828] space-y-6 text-xs font-mono">
+            <div className="flex items-center gap-2 border-b border-[#282828] pb-3">
+              <Bot className="w-5 h-5 text-purple-400" />
+              <h3 className="text-sm font-bold text-white">AI Agent SQL Execution API</h3>
+            </div>
+            <p className="text-slate-400 font-sans">Harici yapay zeka ajanlarının doğrudan veritabanında SQL sorguları çalıştırabilmesi için güvenli (service_role) API noktası.</p>
+            
+            <div className="space-y-2">
+              <div className="font-bold text-emerald-400">POST /api/agents/sql</div>
+              <div className="p-3 rounded-lg bg-[#121212] border border-[#282828] space-y-1">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Headers</div>
+                <div className="text-slate-300">Authorization: Bearer {serviceKey}</div>
+                <div className="text-slate-300">Content-Type: application/json</div>
+              </div>
+              <div className="p-3 rounded-lg bg-[#121212] border border-[#282828] space-y-1 mt-2">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Request Body JSON</div>
+                <pre className="text-amber-300 select-text">{`{
+    "slug": "${project.slug}",
+    "query": "SELECT * FROM users LIMIT 5;"
+  }`}</pre>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

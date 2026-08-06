@@ -29,6 +29,10 @@ export const tenants = sqliteTable("tenants", {
   addonRedis: integer("addon_redis").notNull().default(0),
   addonEdgeFunctions: integer("addon_edge_functions").notNull().default(0),
 
+  // Scale to Zero
+  autoPauseInterval: integer("auto_pause_interval").notNull().default(1440), // minutes (default 24h)
+  lastActiveAt: integer("last_active_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+
   // Timestamps
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()

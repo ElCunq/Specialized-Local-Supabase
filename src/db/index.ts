@@ -77,8 +77,23 @@ export async function ensureDbMigrated() {
   try {
     await client.execute(`ALTER TABLE tenants ADD COLUMN addon_edge_functions INTEGER NOT NULL DEFAULT 0;`);
   } catch (e) {}
+  try {
+    await client.execute(`ALTER TABLE tenants ADD COLUMN auto_pause_interval INTEGER NOT NULL DEFAULT 1440;`);
+  } catch (e) {}
+  try {
+    await client.execute(`ALTER TABLE tenants ADD COLUMN last_active_at INTEGER NOT NULL DEFAULT (unixepoch());`);
+  } catch (e) {}
 }
 
-ensureDbMigrated();
+import { startCron } from "@/lib/docker/cron";
+
+// ... ensureDbMigrated code ...
+ensureDbMigrated().then(() => {
+  // Start the scale-to-zero background worker after DB is ready
+  // Skip during build phase
+  if (process.env.npm_lifecycle_event !== "build" && process.env.NEXT_PHASE !== "phase-production-build") {
+    startCron();
+  }
+});
 
 export const db = drizzle(client, { schema });

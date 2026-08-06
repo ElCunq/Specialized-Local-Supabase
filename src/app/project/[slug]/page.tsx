@@ -20,6 +20,45 @@ import StudioLogs from "@/components/studio/StudioLogs";
 import { StudioAddons } from "@/components/studio/StudioAddons";
 import { Loader2, AlertCircle } from "lucide-react";
 
+function WakeUpScreen({ project, onWokenUp }: { project: Tenant, onWokenUp: () => void }) {
+  const [waking, setWaking] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const wakeProject = async () => {
+      try {
+        await fetch(`/api/projects/${project.id}/toggle`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "resume" }),
+        });
+        // Give Docker ~3 seconds to fully boot and pg_isready
+        setTimeout(() => {
+          if (mounted) onWokenUp();
+        }, 3000);
+      } catch (err) {
+        console.error("Wake up failed:", err);
+      }
+    };
+    wakeProject();
+    return () => { mounted = false; };
+  }, [project.id, onWokenUp]);
+
+  return (
+    <div className="min-h-screen bg-[#1c1c1c] flex items-center justify-center p-6 flex-col gap-6 font-sans">
+      <div className="p-8 rounded-2xl bg-[#242424] border border-[#2e2e2e] text-center max-w-md space-y-4 shadow-xl">
+        <div className="w-16 h-16 bg-[#2e2e2e] rounded-full mx-auto flex items-center justify-center mb-2">
+          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+        </div>
+        <h3 className="text-xl font-medium text-[#ededed]">Waking up project...</h3>
+        <p className="text-sm text-[#8b8b8b]">
+          This project was paused due to inactivity to save resources. We are spinning it back up for you!
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectStudioPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -80,6 +119,10 @@ export default function ProjectStudioPage() {
         </div>
       </div>
     );
+  }
+
+  if (project.status === "paused") {
+    return <WakeUpScreen project={project} onWokenUp={fetchProject} />;
   }
 
   return (
