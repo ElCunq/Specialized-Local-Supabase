@@ -279,15 +279,23 @@ export async function toggleTenantStatus(slug: string, action: "pause" | "resume
     try { await pgbouncerContainer.stop({ t: 2 }); } catch {}
     try { await dbContainer.stop({ t: 5 }); } catch {}
   } else {
+    const safeStart = async (container: any) => {
+      try {
+        await container.start();
+      } catch (err: any) {
+        if (err.statusCode !== 304) throw err;
+      }
+    };
+
     try {
-      await dbContainer.start();
+      await safeStart(dbContainer);
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      await pgbouncerContainer.start();
-      try { await redisContainer.start(); } catch {}
-      await restContainer.start();
-      await metaContainer.start();
-      await authContainer.start();
-      try { await edgeContainer.start(); } catch {}
+      await safeStart(pgbouncerContainer);
+      try { await safeStart(redisContainer); } catch {}
+      await safeStart(restContainer);
+      await safeStart(metaContainer);
+      await safeStart(authContainer);
+      try { await safeStart(edgeContainer); } catch {}
     } catch (err: any) {
       throw new Error(`Failed to resume pod for ${slug}: ${err.message}`);
     }
