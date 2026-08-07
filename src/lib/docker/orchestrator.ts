@@ -283,7 +283,8 @@ export async function toggleTenantStatus(slug: string, action: "pause" | "resume
       try {
         await container.start();
       } catch (err: any) {
-        if (err.statusCode !== 304) throw err;
+        // Ignore 304 (Already Started) and 404 (Not Found / Missing Container)
+        if (err.statusCode !== 304 && err.statusCode !== 404) throw err;
       }
     };
 
