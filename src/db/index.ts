@@ -31,12 +31,9 @@ const client = createClient({
 });
 
 let isMigrated = false;
+let migrationPromise: Promise<void> | null = null;
 
-/**
- * Ensures master database tables (tenants, metrics, api_keys) exist prior to queries
- */
-export async function ensureDbMigrated() {
-  if (isMigrated) return;
+async function runMigrations() {
   try {
     await client.execute(`
       CREATE TABLE IF NOT EXISTS tenants (
@@ -50,6 +47,10 @@ export async function ensureDbMigrated() {
         service_key TEXT,
         db_port INTEGER,
         rest_port INTEGER,
+        addon_redis INTEGER NOT NULL DEFAULT 0,
+        addon_edge_functions INTEGER NOT NULL DEFAULT 0,
+        auto_pause_interval INTEGER NOT NULL DEFAULT 1440,
+        last_active_at INTEGER NOT NULL DEFAULT (unixepoch()),
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
         updated_at INTEGER NOT NULL DEFAULT (unixepoch())
       );
@@ -75,10 +76,8 @@ export async function ensureDbMigrated() {
         created_at INTEGER NOT NULL DEFAULT (unixepoch())
       );
     `);
-    isMigrated = true;
   } catch (err) {
     // Ignore lock errors if another worker migrated
-    isMigrated = true;
   }
 
   // Schema updates (migrations)
@@ -94,6 +93,19 @@ export async function ensureDbMigrated() {
   try {
     await client.execute(`ALTER TABLE tenants ADD COLUMN last_active_at INTEGER NOT NULL DEFAULT (unixepoch());`);
   } catch (e) {}
+
+  isMigrated = true;
+}
+
+/**
+ * Ensures master database tables (tenants, metrics, api_keys) exist prior to queries
+ */
+export async function ensureDbMigrated() {
+  if (isMigrated) return;
+  if (!migrationPromise) {
+    migrationPromise = runMigrations();
+  }
+  return migrationPromise;
 }
 
 import { startCron } from "@/lib/docker/cron";
