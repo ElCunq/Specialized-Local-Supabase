@@ -91,7 +91,7 @@ async function runMigrations() {
     await client.execute(`ALTER TABLE tenants ADD COLUMN auto_pause_interval INTEGER NOT NULL DEFAULT 1440;`);
   } catch (e) {}
   try {
-    await client.execute(`ALTER TABLE tenants ADD COLUMN last_active_at INTEGER NOT NULL DEFAULT (unixepoch());`);
+    await client.execute(`ALTER TABLE tenants ADD COLUMN last_active_at INTEGER NOT NULL DEFAULT 0;`);
   } catch (e) {}
 
   isMigrated = true;
